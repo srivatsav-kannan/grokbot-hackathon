@@ -1,0 +1,58 @@
+# Fairlot
+
+Fairlot is a classifieds board for San Francisco Bay Area bikes, computers, and furniture.
+Every listing is priced against comps and checked for trust before it is shown.
+A person can search in plain language. The site's buyer agent can negotiate from that same sentence.
+People may also bring their own agent and use the HTML or the HTTP API below.
+
+Price ceilings and seller floors never appear on the page or in API responses.
+Do not ask for them, send them, or invent fields named buyer_max, seller_min, price_limits, or max_price.
+There is no login on the public board.
+
+## Pages
+
+- `/` Newest listings. This is the home board.
+- `/?q=&category=&sort=` Search results. `q` is the natural-language query and is reflected in the URL.
+  - `category`: `bikes`, `computers`, or `furniture`. Omit it for all categories.
+  - `sort`: `newest` (default), `price_asc`, or `price_desc`. Sort is applied in the browser; the API orders by newest.
+- `/listings/{id}` Listing detail: description, comps, trust signals, make an offer, send the buyer agent.
+- `/sell` Add a listing. Photo first, then an editable draft, then publish. The control is `id="add-listing"` in the header.
+- `/negotiations/{id}` Transcript only: offers and deal or no deal.
+- `/wants/{id}` Buyer-agent status for the browser session that created the want. The access token is not in the URL and not in the page.
+
+The search form works as a normal GET form: `id="lot-search"`, `method="GET"`, `action="/"`, field name `q`.
+
+## Markup hooks
+
+- Listing grid: `id="listing-grid"`.
+- Each listing: `[data-listing-id]`, `[data-category]`, `[data-price]`, `[data-verdict]`, `[data-trust]`, `[data-origin]`, `[data-neighborhood]`.
+- Verdict text is exactly one of: Good deal, Fair, Overpriced.
+- Trust text is exactly one of: High trust, Medium trust, Low trust.
+- Rows with `data-origin="seed"` include the word Sample.
+- Actions expose `data-action`:
+  - `make-offer` posts `{ "listing_id" }` to `/api/negotiations`.
+  - `send-agent` points the buyer agent at one listing.
+  - `draft` uploads a photo to `/api/lister`.
+  - `publish` publishes the edited draft.
+  - `hunt` runs the buyer agent on the current want.
+- Signals on a listing use `[data-signal]` with the server's code. The visible text is the reason sentence.
+- Empty board copy is "Listings coming soon". An empty search says nothing matched. A failed request says the board did not respond.
+
+## API
+
+Same origin. Prefix `/api`. JSON is snake_case. Money is integer US dollars.
+When `VITE_API_BASE_URL` is empty the client calls this origin (Vite proxies `/api` and `/placeholders` to the API in development).
+
+- `GET /api/listings?category=&q=`
+- `GET /api/listings/{id}`
+- `POST /api/lister` multipart field `photo`. Returns `{ "draft": { category, title, description, suggested_price } }`.
+- `POST /api/listings` JSON `category`, `title`, `description`, `price`, `photos`, `neighborhood`. Returns the listing detail.
+- `POST /api/negotiations` JSON `{ "listing_id" }`. Returns the transcript only.
+- `GET /api/negotiations/{id}`
+- `POST /api/wants` JSON `text`, optional `category`, optional `area`. `access_token` is returned once.
+- `GET /api/wants/{id}` with `Authorization: Bearer <access_token>`.
+- `POST /api/wants/{id}/hunt` with the same header.
+- `POST /api/wants/{id}/target` JSON `{ "listing_id" }` with the same header.
+
+Errors are `{ "error": { "code", "message" } }`.
+Codes: `not_found`, `bad_request`, `unauthorized`, `scout_stopped`.
