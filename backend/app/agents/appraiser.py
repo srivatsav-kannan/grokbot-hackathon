@@ -6,7 +6,7 @@ Verdict rule: asking price under low -> good_deal; inside [low, high] -> fair; o
 
 from __future__ import annotations
 
-from backend.app.agents.llm import complete
+from backend.app.agents.llm import complete, parse_json_reply
 from backend.app.repository import ListingRecord
 from backend.app.schemas import Appraisal, Comp
 
@@ -16,6 +16,8 @@ ANCHORS: dict[str, int] = {
     "computers": 750,
     "furniture": 220,
 }
+
+_MAX_DOLLARS = 500_000
 
 
 def verdict_for(price: int, low: int, high: int) -> str:
@@ -44,5 +46,84 @@ def stub_appraise(listing: ListingRecord) -> Appraisal:
 
 
 def appraise(listing: ListingRecord) -> Appraisal:
-    complete(f"Appraise a {listing.category} listing titled {listing.title} asking {listing.price}.")
+    parsed = parse_json_reply(complete(_appraisal_prompt(listing)))
+    if isinstance(parsed, dict):
+        appraisal = _appraisal_from_payload(listing, parsed)
+        if appraisal is not None:
+            return appraisal
     return stub_appraise(listing)
+
+
+def _appraisal_prompt(listing: ListingRecord) -> str:
+    return (
+        "You price used bikes, computers, and furniture in the SF Bay Area. "
+        "Reply with one JSON object only, no markdown, using integer US dollars: "
+        '{"estimated_value": 340, "low": 280, "high": 420, '
+        '"comps": [{"title": "Similar item nearby", "price": 300, "url": "https://example.com/comp"}]}. '
+        "low and high are the comparable range. estimated_value must sit inside that range. "
+        "Do not decide whether the asking price is a good deal. "
+        "Do not include a budget, a buyer maximum, or a seller minimum.\n"
+        f"Category: {listing.category}\n"
+        f"Title: {listing.title}\n"
+        f"Description: {listing.description}\n"
+        f"Neighborhood: {listing.neighborhood}\n"
+        f"Asking price: {listing.price}"
+    )
+
+
+def _appraisal_from_payload(listing: ListingRecord, payload: dict) -> Appraisal | None:
+    low = _dollars(payload.get("low"))
+    high = _dollars(payload.get("high"))
+    estimated = _dollars(payload.get("estimated_value"))
+    if low is None or high is None or estimated is None or low > high:
+        return None
+    if estimated < low or estimated > high:
+        estimated = min(max(estimated, low), high)
+    return Appraisal(
+        estimated_value=estimated,
+        low=low,
+        high=high,
+        comps=_comps(payload.get("comps"), low, high),
+        verdict=verdict_for(listing.price, low, high),  # type: ignore[arg-type]
+    )
+
+
+def _comps(raw: object, low: int, high: int) -> list[Comp]:
+    comps: list[Comp] = []
+    if isinstance(raw, list):
+        for item in raw[:6]:
+            if not isinstance(item, dict):
+                continue
+            title = item.get("title")
+            price = _dollars(item.get("price"))
+            url = item.get("url")
+            if not isinstance(title, str) or not title.strip() or price is None:
+                continue
+            if not isinstance(url, str) or not url.strip():
+                url = "https://example.com/comps/item"
+            comps.append(Comp(title=title.strip()[:120], price=price, url=url.strip()[:300]))
+    if comps:
+        return comps
+    return [
+        Comp(title="Lower comparable", price=low, url="https://example.com/comps/low"),
+        Comp(title="Higher comparable", price=high, url="https://example.com/comps/high"),
+    ]
+
+
+def _dollars(value: object) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        number = value
+    elif isinstance(value, float) and value.is_integer():
+        number = int(value)
+    elif isinstance(value, str):
+        cleaned = value.strip().replace(",", "").replace("$", "")
+        if not cleaned.isdigit():
+            return None
+        number = int(cleaned)
+    else:
+        return None
+    if number < 1 or number > _MAX_DOLLARS:
+        return None
+    return number

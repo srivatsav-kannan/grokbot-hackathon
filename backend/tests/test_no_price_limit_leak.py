@@ -8,8 +8,15 @@ Examples, and every other response, must not carry those names or the stored sec
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 
+from backend.app.agents.appraiser import appraise
+from backend.app.agents.buyer import match_listings, parse_want, private_max_from_text
+from backend.app.agents.inspector import inspect
+from backend.app.agents.lister import draft_from_photo
+from backend.app.agents.negotiator import negotiate
 from backend.app.db import connect
+from backend.app.repository import get_listing
 
 FORBIDDEN_KEYS = {"buyer_max", "seller_min", "price_limits", "max_price"}
 TOKEN_KEY = "access_token"
@@ -124,3 +131,42 @@ def test_responses_and_openapi_hide_private_fields(client):
         assert forbidden not in blob
     assert token not in json.dumps(schema)
     assert "12345" not in json.dumps(schema)
+
+
+def test_agent_prompts_and_transcripts_omit_private_limits(client, monkeypatch):
+    """complete() prompts and negotiation text must not carry the hidden bounds."""
+
+    buyer_max = 11111
+    seller_min = 22222
+    prompts: list[str] = []
+
+    def capture(prompt, *, image=None, timeout_s=8.0):
+        prompts.append(prompt)
+        return None
+
+    for module in ("appraiser", "inspector", "buyer", "negotiator", "lister"):
+        monkeypatch.setattr(f"backend.app.agents.{module}.complete", capture)
+
+    text = "road bike under $11111 in SF"
+    assert private_max_from_text(text) == buyer_max
+    criteria = parse_want(text)
+    assert "11111" not in json.dumps(asdict(criteria))
+    assert "buyer_max" not in json.dumps(asdict(criteria))
+    match_listings(criteria)
+
+    listing = get_listing("lst_02")
+    assert listing is not None
+    appraisal = appraise(listing)
+    inspect(listing, appraisal)
+    draft_from_photo(b"\x89PNG\r\n\x1a\n", "bike.png")
+    for limits in ((buyer_max, seller_min), (seller_min, buyer_max)):
+        draft = negotiate(listing, limits[0], limits[1])
+        transcript = json.dumps([message.model_dump() for message in draft.messages])
+        assert "11111" not in transcript
+        assert "22222" not in transcript
+        assert "buyer_max" not in transcript
+        assert "seller_min" not in transcript
+
+    blob = "\n".join(prompts)
+    for secret in ("11111", "22222", "buyer_max", "seller_min", "price_limits"):
+        assert secret not in blob
