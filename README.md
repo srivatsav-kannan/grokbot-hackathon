@@ -1,22 +1,43 @@
 # Fairlot
 
-Photo-first classifieds for SF Bay Area bikes, computers, and furniture. Each listing is already priced against comps and checked for scam signs, a seller can start from a photo, and buyer and seller agents negotiate inside limits that stay on the server. Working title for the Berkeley × Stanford Grok Bot Hackathon, Best Design track.
+Craigslist made effortless for SF Bay Area bikes, computers, and furniture. You say what you want; agents find the listings, vet every one, and haggle inside a max only the server knows. Built for the Berkeley × Stanford Grok Bot Hackathon, Best Design track.
 
-- [Architecture](docs/ARCHITECTURE.md) — system, data model, frozen API contract
-- [Roadmap](docs/ROADMAP.md) — 2-hour plan, cut list, judging checklist
-- [Tasks](docs/TASKS.md) — Person A, Person B, Person C
+- [Architecture](docs/ARCHITECTURE.md) — system, data model, API
+- [Roadmap](docs/ROADMAP.md) — cut order and judging checklist
+- [Tasks](docs/TASKS.md) — @unclesdad, @srivatsav-kannan, @heruirayli
+- [Grok Bot integration](docs/GROKBOT_INTEGRATION.md) — bot-facing API and skill recipe
 
 ## Inspiration
 
-TODO
+Classic classifieds make you refresh, squint at photos, and message strangers one by one. Scams and fantasy prices hide in the same feed as real deals. Fairlot flips that: you type the want ("road bike under $400 in SF"), and agents do the hunting, the scam check, the pricing, and the back-and-forth.
 
 ## What it does
 
-TODO
+- **Say the want.** On the site, or by telling your own Grok Bot. A buyer agent then searches seller listings and negotiates with each seller inside your private max. You can also point that agent at one listing.
+- **Every listing arrives priced and scam-checked.** Scout, Appraiser, and Inspector run once for everyone, not per user. Cards show a deal verdict and a trust badge before anyone opens a chat.
+- **Sellers start from a photo.** Lister drafts the post. A seller agent negotiates inside that seller's private minimum.
+- **Limits stay private.** Your max and their minimum never leave the server, never reach the other side, and never reach your Grok Bot. The bot is the remote control; our server does the negotiating.
 
 ## How we built it
 
-TODO: tech stack and the agent diagram. Start from `docs/ARCHITECTURE.md`.
+One public service: FastAPI serves the React app and `/api`. Site-run agents (Scout, Appraiser, Inspector, Lister, Buyer, Seller) call the Grok API from the server. A user's own Grok Bot is only a client of a small HTTP JSON API. Details and the diagram: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+```mermaid
+flowchart LR
+  Web["User · web"]
+  Bot["User's Grok Bot · API"]
+  Server["Fairlot server"]
+  Agents["Site-run agents"]
+  Global["Scout → store → Appraiser → Inspector"]
+  Data["SQLite"]
+
+  Web --> Server
+  Bot -->|"plain HTTP + JSON"| Server
+  Server --> Agents
+  Agents --> Data
+  Global --> Data
+  Server --> Global
+```
 
 ## Challenges we ran into
 
