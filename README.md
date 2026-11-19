@@ -19,7 +19,7 @@ Classic classifieds make you refresh, squint at photos, and message strangers on
 
 - **Browse a pre-vetted feed.** Every listing shows a price verdict (Good deal / Fair / Overpriced) and a trust badge (High / Medium / Low) before anyone opens a chat. Scout, Appraiser, and Inspector run once for everyone, not per user.
 - **Sell from a photo.** Lister drafts the title, description, category, and suggested price. After publish, the new listing is already appraised and inspected. A seller agent negotiates inside that seller's private minimum.
-- **Say the want, then hunt or target.** Type it on the site (when the UI lands) or tell your own Grok Bot. `POST /api/wants` stores a private max parsed from the text. Hunt matches listings and opens negotiations; target points the buyer agent at one listing. Buyer and seller agents haggle inside server-only limits.
+- **Say the want, then hunt or target.** Type it on the Board, or tell your own Grok Bot. `POST /api/wants` stores a private max parsed from the text. Hunt matches listings and opens negotiations; target points the buyer agent at one listing. Buyer and seller agents haggle inside server-only limits.
 - **Grok Bot is a client, not the negotiator.** It calls the wants API (create, read, hunt, target) with a bearer token. Limits never leave the server, never reach the other side, and never reach the bot.
 - **Live Scout.** With `SCOUT_LIVE=1`, Scout reads public Craigslist SF Bay search pages for bikes, computers, and furniture and adds them to the feed.
 
@@ -27,7 +27,7 @@ Twelve seed listings (`origin: "seed"`) ship with the API so the feed works befo
 
 ## How we built it
 
-One public service. **FastAPI** + **Uvicorn** serve `/api` (and `frontend/dist` when that folder exists) with **SQLite** for listings, wants, matches, negotiations, private limits, and tokens. **httpx** fetches Scout pages. Tests use **pytest**. The production image is a single **Docker** service (`python:3.12-slim`). The planned UI is **Vite + React + TypeScript**, owned by @unclesdad; `frontend/` is not in the repo yet, and the API still boots without it.
+One public service. **FastAPI** + **Uvicorn** serve `/api` (and `frontend/dist` when that folder exists) with **SQLite** for listings, wants, matches, negotiations, private limits, and tokens. **httpx** fetches Scout pages. Tests use **pytest**. The production image is a single **Docker** service (`python:3.12-slim`). The UI is **Vite + React + TypeScript**, owned by @unclesdad and merged in [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6). Pages: Board (`/`), Listing (`/listings/:id`), Sell (`/sell`), Want (`/wants/:id`), and Negotiation (`/negotiations/:id`). FastAPI serves `frontend/dist` when that folder exists, and the API still boots without it.
 
 Site-run agents call a single Grok seam, `complete()`, with `GROK_API_KEY` (optional `GROK_API_BASE_URL`) from the environment only. A user's own Grok Bot talks to the same HTTP JSON API. Call graph: [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
@@ -38,7 +38,7 @@ Site-run agents call a single Grok seam, `complete()`, with `GROK_API_KEY` (opti
 
 ```mermaid
 flowchart LR
-  Web["Web UI · planned"]
+  Web["Web UI"]
   Bot["User's Grok Bot"]
   API["FastAPI routes"]
   Svc["services + hunt runner"]
@@ -62,7 +62,7 @@ flowchart LR
 - **Limits had to stay invisible.** Buyer ceilings and seller floors are used in negotiation but must never appear in responses, OpenAPI schemas, logs, or a Grok Bot chat. That forced a split: the service layer is the only place that reads them; agent return values and the wants API omit them. A leak test guards the contract.
 - **A live fetcher had to stay polite.** Scout is capped at three public search pages, caches for an hour, and stops on a CAPTCHA or block instead of retrying. `SCOUT_LIVE` stays off by default so tests never hit the network.
 - **Three tracks in one repo.** Ownership is path-based, and work lands on `a/`, `b/`, and `c/` feature branches as small PRs into `main`, so parallel Grok Bots do not overwrite each other.
-- **The UI is still in flight.** FastAPI is ready to serve `frontend/dist`, but that folder is not merged yet, so a visitor to `/` currently gets a short JSON note that the API is ready.
+- **The API had to work before the UI landed.** FastAPI serves `frontend/dist` when a build is present and still boots when it is not, so the feed stayed reachable while the frontend was in flight.
 
 ## Accomplishments
 
@@ -71,6 +71,7 @@ flowchart LR
 - Private limits stay on the server; `access_token` is returned once from `POST /api/wants`.
 - Live Scout fetcher, merged in [PR #2](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/2), with cache, contact scrubbing, and a hard stop on challenges.
 - A one-service Docker image that boots with or without a frontend build.
+- Photo-first Vite + React + TypeScript UI, merged in [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6), with Board, Listing, Sell, Want, and Negotiation pages.
 
 ## What we learned
 
@@ -80,9 +81,9 @@ flowchart LR
 
 ## What's next
 
-- Land @unclesdad's photo-first React UI and serve it from the same origin.
+- Redeploy so the public Render service serves the built UI from the same origin as `/api`. The Dockerfile on `main` still copies only the backend; @srivatsav-kannan's unmerged `c/render-deploy` branch adds a Node build stage for `frontend/`.
 - Let @srivatsav-kannan wire `complete()` to live Grok calls; stubs already kick in if the key is missing or the call fails.
-- Deploy one public HTTPS URL on Render, handled by @srivatsav-kannan. That service will need `SCOUT_LIVE=1` for live fetching, and `GROK_API_KEY` as a secret once `complete()` is live.
+- The Render service will need `SCOUT_LIVE=1` for live fetching, and `GROK_API_KEY` as a secret once `complete()` is live.
 - Make the repo public, export a cleaned Grok Bot session, and submit.
 
 ## How Grok Bot helped build it
@@ -91,7 +92,7 @@ Each teammate used their own Grok Bot on a separate track, in parallel, on featu
 
 - @srivatsav-kannan's bot landed the server plumbing — routes, SQLite, seed data, agent stubs, Dockerfile, and tests — as [PR #1](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/1).
 - @heruirayli's Grok Bot built the live Scout fetcher as [PR #2](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/2) and wrote this README.
-- @unclesdad's bot is building the frontend on the `a/…` track; that work is not merged yet.
+- @unclesdad's bot landed the Vite + React + TypeScript UI as [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6).
 
 ## How to run it
 
@@ -103,6 +104,25 @@ pip install -r backend/requirements.txt && uvicorn backend.app.main:app --port 8
 ```
 
 `GROK_API_KEY` stays empty until a real model call. It is server-only and must not go in the frontend bundle. Optional: `GROK_API_BASE_URL`, `CORS_ORIGINS`, `DATABASE_PATH`, `SCOUT_LIVE`. Copy `.env.example`. Frontend uses `VITE_API_BASE_URL` (empty means same origin). @unclesdad owns `frontend/`.
+
+Frontend dev server (API already running on port 8000):
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open http://localhost:5173. Vite proxies `/api` and `/placeholders` to http://127.0.0.1:8000. Leave `VITE_API_BASE_URL` empty for local dev and for a same-origin production build.
+
+To serve the built UI from the same origin as the API:
+
+```bash
+cd frontend && npm ci && npm run build
+uvicorn backend.app.main:app --port 8000
+```
+
+With `frontend/dist` present, `GET /` returns the app HTML, and deep links (`/listings/:id`, `/sell`, `/wants/:id`, `/negotiations/:id`) fall back to `index.html`. `/api/listings` still returns JSON.
 
 ```bash
 python -m pytest backend/tests -q
@@ -119,14 +139,12 @@ curl -X POST localhost:8000/api/scout/run -H 'Content-Type: application/json' -d
 
 On Windows PowerShell: `backend\.venv\Scripts\activate`, then `$env:SCOUT_LIVE="1"` before `uvicorn`.
 
-One service. FastAPI serves `frontend/dist` when that folder exists and still boots when it does not.
+One service. FastAPI serves `frontend/dist` when that folder exists and still boots when it does not. The Dockerfile on `main` does not build the frontend yet, so mount a local build if you want the UI in the container:
 
 ```bash
-docker build -t fairlot . && docker run --rm -p 8000:8000 fairlot
+docker build -t fairlot . && docker run --rm -p 8000:8000 -v "$PWD/frontend/dist:/app/frontend/dist:ro" fairlot
 ```
 
-Mount a built UI with `-v "$PWD/frontend/dist:/app/frontend/dist:ro"`. Pass secrets and feature flags with `-e`, for example `-e SCOUT_LIVE=1`.
+Pass secrets and feature flags with `-e`, for example `-e SCOUT_LIVE=1`.
 
-Deploy is on Render, handled by @srivatsav-kannan.
-
-Public URL: _to be added when the Render service is live._
+Deploy is on Render, handled by @srivatsav-kannan. The deploy target is [https://fairlot.onrender.com](https://fairlot.onrender.com). As of 3:45 PM PT on November 19, 2026, that service served the API with a "frontend not built yet" note and only the seed listings; the UI was not live there yet.
