@@ -9,6 +9,12 @@ PNG = (
 )
 
 
+def test_health(client):
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    assert health.json() == {"ok": True}
+
+
 def test_feed_detail_and_badges(client):
     listed = client.get("/api/listings")
     assert listed.status_code == 200

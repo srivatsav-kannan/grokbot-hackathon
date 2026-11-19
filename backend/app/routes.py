@@ -28,6 +28,11 @@ from backend.app.schemas import (
 router = APIRouter()
 
 
+@router.get("/health")
+def get_health() -> dict[str, bool]:
+    return {"ok": True}
+
+
 def _bearer(authorization: Annotated[str | None, Header()] = None) -> str:
     if not authorization:
         raise APIError(401, "unauthorized", "Want token required.")
