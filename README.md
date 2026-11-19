@@ -6,6 +6,8 @@ Craigslist made effortless for SF Bay Area bikes, computers, and furniture. You 
 - [Roadmap](docs/ROADMAP.md) — cut order and judging checklist
 - [Tasks](docs/TASKS.md) — @unclesdad, @srivatsav-kannan, @heruirayli
 - [Grok Bot integration](docs/GROKBOT_INTEGRATION.md) — bot-facing API and skill recipe
+- [Integration](docs/INTEGRATION.md) — exact function signatures and call order
+- Briefs: [A](docs/briefs/person-a-frontend.md) · [B](docs/briefs/person-b-agents.md) · [C](docs/briefs/person-c-data-api-ship.md)
 
 ## Inspiration
 
@@ -61,4 +63,23 @@ TODO
 
 ## How to run it
 
-TODO: local run, env vars (`GROK_API_KEY` only on the server), and the single-service deploy (FastAPI serves the built frontend). No secrets in this file.
+Dev API (stubs, no key required):
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r backend/requirements.txt && uvicorn backend.app.main:app --port 8000
+```
+
+`GROK_API_KEY` stays empty until a real model call. Optional: `GROK_API_BASE_URL`, `CORS_ORIGINS`, `DATABASE_PATH`. Copy `.env.example`. Frontend uses `VITE_API_BASE_URL` (empty means same origin). @unclesdad owns `frontend/`.
+
+```bash
+python -m pytest backend/tests -q
+```
+
+One service. FastAPI serves `frontend/dist` when that folder exists and still boots when it does not.
+
+```bash
+docker build -t fairlot . && docker run --rm -p 8000:8000 fairlot
+```
+
+Mount a built UI with `-v "$PWD/frontend/dist:/app/frontend/dist:ro"`.
