@@ -1,6 +1,6 @@
-"""Single Grok seam. Person B owns complete().
+"""Single Claude seam. Person B owns complete().
 
-Read GROK_API_KEY, GROK_API_BASE_URL, and GROK_MODEL from the environment only.
+Read ANTHROPIC_API_KEY and ANTHROPIC_MODEL from the environment only.
 Never log the key. Never put server-only negotiation bounds in the prompt.
 On a missing key, timeout, or error, return None so the caller keeps its stub.
 """
@@ -14,33 +14,37 @@ import re
 
 import httpx
 
-_DEFAULT_BASE_URL = "https://api.x.ai/v1"
-_DEFAULT_MODEL = "grok-4.7"
+_API_URL = "https://api.anthropic.com/v1/messages"
+_API_VERSION = "2023-06-01"
+_DEFAULT_MODEL = "claude-sonnet-5-5"
+_MAX_TOKENS = 1024
 _FENCE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
 
 
 def complete(prompt: str, *, image: bytes | None = None, timeout_s: float = 8.0) -> str | None:
-    key = os.environ.get("GROK_API_KEY", "").strip()
+    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not key or timeout_s <= 0 or not prompt.strip():
         return None
-    base = os.environ.get("GROK_API_BASE_URL", "").strip() or _DEFAULT_BASE_URL
-    model = os.environ.get("GROK_MODEL", "").strip() or _DEFAULT_MODEL
-    url = base.rstrip("/") + "/chat/completions"
+    model = os.environ.get("ANTHROPIC_MODEL", "").strip() or _DEFAULT_MODEL
     body = {
         "model": model,
-        "stream": False,
+        "max_tokens": _MAX_TOKENS,
         "messages": [{"role": "user", "content": _message_content(prompt, image)}],
     }
     try:
         with httpx.Client(timeout=httpx.Timeout(timeout_s), follow_redirects=False) as client:
             response = client.post(
-                url,
-                headers={"Authorization": f"Bearer {key}"},
+                _API_URL,
+                headers={
+                    "x-api-key": key,
+                    "anthropic-version": _API_VERSION,
+                    "content-type": "application/json",
+                },
                 json=body,
             )
         if response.status_code != 200:
             return None
-        return _choice_text(response.json())
+        return _message_text(response.json())
     except Exception:
         return None
 
@@ -72,18 +76,18 @@ def parse_json_reply(text: str | None) -> dict | list | None:
 def _message_content(prompt: str, image: bytes | None) -> str | list[dict[str, object]]:
     if not image:
         return prompt
-    return [
-        {"type": "text", "text": prompt},
-        {
-            "type": "image_url",
-            "image_url": {"url": _data_url(image), "detail": "high"},
-        },
-    ]
-
-
-def _data_url(image: bytes) -> str:
     encoded = base64.b64encode(image).decode("ascii")
-    return f"data:{_image_mime(image)};base64,{encoded}"
+    return [
+        {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": _image_mime(image),
+                "data": encoded,
+            },
+        },
+        {"type": "text", "text": prompt},
+    ]
 
 
 def _image_mime(image: bytes) -> str:
@@ -96,32 +100,23 @@ def _image_mime(image: bytes) -> str:
     return "image/jpeg"
 
 
-def _choice_text(payload: object) -> str | None:
+def _message_text(payload: object) -> str | None:
     if not isinstance(payload, dict):
         return None
-    choices = payload.get("choices")
-    if not isinstance(choices, list) or not choices:
-        return None
-    first = choices[0]
-    if not isinstance(first, dict):
-        return None
-    message = first.get("message")
-    if not isinstance(message, dict):
-        return None
-    content = message.get("content")
+    content = payload.get("content")
     if isinstance(content, str):
         text = content.strip()
         return text or None
-    if isinstance(content, list):
-        chunks: list[str] = []
-        for part in content:
-            if isinstance(part, str):
-                chunks.append(part)
-            elif isinstance(part, dict) and isinstance(part.get("text"), str):
-                chunks.append(part["text"])
-        text = "".join(chunks).strip()
-        return text or None
-    return None
+    if not isinstance(content, list):
+        return None
+    chunks: list[str] = []
+    for part in content:
+        if isinstance(part, str):
+            chunks.append(part)
+        elif isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
+            chunks.append(part["text"])
+    text = "".join(chunks).strip()
+    return text or None
 
 
 def _loads_container(candidate: str) -> dict | list | None:
