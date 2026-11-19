@@ -27,7 +27,7 @@ Feed and listing:
 Wants, after the feed looks right. Do not block badges on these.
 
 - `POST /api/wants` → `{ id, access_token }` once. Keep the token in memory for that session.
-- `GET /api/wants/{id}`, `POST /api/wants/{id}/hunt`, `POST /api/wants/{id}/target` send header `X-Want-Token`.
+- `GET /api/wants/{id}`, `POST /api/wants/{id}/hunt`, `POST /api/wants/{id}/target` send `Authorization: Bearer <access_token>`.
 - Show criteria, match cards with the same badges, and the transcript. There is no max-price or seller-floor field. Do not add an input for one.
 
 `VITE_API_BASE_URL` empty means same origin. For local Vite, set it to `http://localhost:8000` or proxy `/api`.
