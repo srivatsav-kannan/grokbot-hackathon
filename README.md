@@ -88,7 +88,7 @@ Mount a built UI with `-v "$PWD/frontend/dist:/app/frontend/dist:ro"`.
 
 Fairlot runs as one Render web service from the root Blueprint, [`render.yaml`](render.yaml). That service is [https://fairlot.onrender.com](https://fairlot.onrender.com): Docker runtime, free plan, region Oregon, health check `GET /api/health`, and automatic deploys on commits to `main`. The image listens on `0.0.0.0:$PORT` and builds `frontend/` when that package is in the repo.
 
-Set `GROK_API_KEY` and `GROK_MODEL` in the Render dashboard. `GROK_API_BASE_URL` is optional. All three are `sync: false`, so the dashboard holds the values.
+Set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` in the Render dashboard. Both are `sync: false`, so the dashboard holds the values.
 
 The free plan has no persistent disk. SQLite lives at `/tmp/fairlot.db`. On startup, an empty listings table is seeded again.
 

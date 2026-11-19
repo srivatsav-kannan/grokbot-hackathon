@@ -12,9 +12,7 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     envVars:
-      - key: GROK_API_KEY
+      - key: ANTHROPIC_API_KEY
         sync: false
-      - key: GROK_API_BASE_URL
-        sync: false
-      - key: GROK_MODEL
+      - key: ANTHROPIC_MODEL
         sync: false
