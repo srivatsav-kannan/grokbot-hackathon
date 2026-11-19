@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, createDraft, publishListing } from "../api/client";
 import { CATEGORIES, CATEGORY_LABEL } from "../lib/format";
@@ -39,6 +39,8 @@ export function SellPage() {
   const [neighborhood, setNeighborhood] = useState("");
   const [phase, setPhase] = useState<"idle" | "drafting" | "publishing">("idle");
   const [error, setError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!file) {
@@ -49,6 +51,26 @@ export function SellPage() {
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  function rememberFile(next: File | null) {
+    setFile(next);
+    const input = photoInput.current;
+    if (!input) return;
+    if (!next) {
+      input.value = "";
+      return;
+    }
+    const transfer = new DataTransfer();
+    transfer.items.add(next);
+    input.files = transfer.files;
+  }
+
+  function onDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setDragOver(false);
+    const next = event.dataTransfer.files?.[0] ?? null;
+    if (next) rememberFile(next);
+  }
 
   async function onDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,30 +131,39 @@ export function SellPage() {
   return (
     <div className="wrap board sell">
       <h1>Add a listing</h1>
-      <p className="lede">
-        Start with a photo. Fairlot drafts the title, category, and price. Edit anything before it
-        goes on the board. The listing is priced and checked as soon as you publish.
-      </p>
-
+      <div className="sell-layout">
       <form id="sell-photo-form" onSubmit={onDraft}>
-        <label className="file-field" htmlFor="sell-photo">
-          Photo
+        <label
+          className={dragOver ? "dropzone dropzone-over" : "dropzone"}
+          htmlFor="sell-photo"
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+        >
+          {preview ? (
+            <img className="dropzone-preview" src={preview} alt="Selected listing photo" width={800} height={600} />
+          ) : (
+            <span className="dropzone-copy">
+              <span className="dropzone-title">Drop a photo here</span>
+              <span>or choose a file. Under 2 MB.</span>
+            </span>
+          )}
           <input
+            ref={photoInput}
             id="sell-photo"
             name="photo"
             type="file"
             accept="image/*"
             required={!draft}
             onChange={(event) => {
-              const next = event.target.files?.[0] ?? null;
-              setFile(next);
+              setFile(event.target.files?.[0] ?? null);
             }}
           />
         </label>
-        {preview ? (
-          <img className="sell-preview" src={preview} alt="Selected listing photo" width={800} height={600} />
-        ) : null}
-        <button type="submit" data-action="draft" disabled={phase !== "idle"}>
+        <button className="button-primary" type="submit" data-action="draft" disabled={phase !== "idle"}>
           {phase === "drafting" ? "Drafting…" : "Draft the listing"}
         </button>
       </form>
@@ -216,7 +247,17 @@ export function SellPage() {
             {phase === "publishing" ? "Publishing…" : "Publish"}
           </button>
         </form>
-      ) : null}
+      ) : (
+        <div className="sell-steps">
+          <h2>How a listing gets on the board</h2>
+          <ol>
+            <li>Add a photo of the bike, computer, or piece of furniture.</li>
+            <li>Edit the draft title, price, and neighborhood.</li>
+            <li>Publish. The listing is priced and checked before it appears.</li>
+          </ol>
+        </div>
+      )}
+      </div>
 
       {error ? (
         <p className="form-error" role="alert">
