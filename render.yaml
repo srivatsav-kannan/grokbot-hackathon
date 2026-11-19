@@ -1,0 +1,18 @@
+# One web service. FastAPI serves frontend/dist and /api from the same origin.
+# Name matches the existing service at https://fairlot.onrender.com.
+services:
+  - type: web
+    name: fairlot
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    autoDeployTrigger: commit
+    healthCheckPath: /api/health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        sync: false
