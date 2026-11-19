@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { mediaUrl } from "../api/client";
+import { isPlaceholderSrc } from "./PhotoFrame";
 import { gsap, ScrollTrigger, useReducedMotion } from "../lib/scroll";
 import type { ListingCard } from "../types";
 
@@ -54,7 +55,13 @@ export function Hero({ listings }: { listings: ListingCard[] }) {
           {loop.map((cell, index) => (
             <span className="rail-item" key={`${cell.key}-${index}`}>
               {cell.src ? (
-                <img src={cell.src} alt="" width={800} height={600} />
+                <img
+                  className={isPlaceholderSrc(cell.src) ? "rail-pending" : undefined}
+                  src={cell.src}
+                  alt=""
+                  width={800}
+                  height={600}
+                />
               ) : null}
               <span>{cell.label}</span>
             </span>

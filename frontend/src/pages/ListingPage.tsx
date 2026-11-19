@@ -9,6 +9,7 @@ import {
   targetWant,
 } from "../api/client";
 import { Marks } from "../components/Marks";
+import { PhotoFrame } from "../components/PhotoFrame";
 import { Price } from "../components/Price";
 import { DetailSkeleton, ErrorNotice, Missing } from "../components/States";
 import {
@@ -35,12 +36,10 @@ export function ListingPage() {
   const [offerMessage, setOfferMessage] = useState("");
   const [agentState, setAgentState] = useState<"idle" | "working" | "error">("idle");
   const [agentMessage, setAgentMessage] = useState("");
-  const [broken, setBroken] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoad({ status: "loading" });
-    setBroken(false);
     getListing(id, controller.signal)
       .then((listing) => {
         if (!controller.signal.aborted) setLoad({ status: "ready", listing });
@@ -128,7 +127,6 @@ export function ListingPage() {
   }
 
   if (!listing) return null;
-  const photo = listing.photos[0] ? mediaUrl(listing.photos[0]) : "";
   const current = activeWant();
 
   return (
@@ -149,25 +147,24 @@ export function ListingPage() {
       </p>
       <div className="detail-top">
         <div className="detail-photo">
-          {photo && !broken ? (
-            <img
-              src={photo}
-              alt={`${listing.title}, photo`}
-              width={800}
-              height={600}
-              onError={() => setBroken(true)}
-            />
+          {listing.photos.length > 0 ? (
+            listing.photos.map((src, index) => (
+              <PhotoFrame
+                key={src}
+                src={mediaUrl(src)}
+                alt={index === 0 ? `${listing.title}, photo` : ""}
+                label={CATEGORY_LABEL[listing.category]}
+                eager={index === 0}
+              />
+            ))
           ) : (
-            <span className="photo-fallback">{CATEGORY_LABEL[listing.category]}</span>
+            <PhotoFrame src="" alt="" label={CATEGORY_LABEL[listing.category]} />
           )}
-          {listing.photos.slice(1).map((src) => (
-            <img key={src} src={mediaUrl(src)} alt="" width={800} height={600} />
-          ))}
         </div>
         <div className="detail-summary">
           <p className="eyebrow-place">{listing.neighborhood}</p>
           <h1>{listing.title}</h1>
-          <Price className="price price-lg" amount={listing.price} count />
+          <Price className="price price-lg" amount={listing.price} />
           <p className="posted">
             <time dateTime={listing.posted_at}>{formatWhen(listing.posted_at)}</time>
             <span> · {CATEGORY_LABEL[listing.category]}</span>

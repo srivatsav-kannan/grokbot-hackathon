@@ -1,13 +1,12 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { mediaUrl } from "../api/client";
 import { CATEGORY_LABEL } from "../lib/format";
 import type { ListingCard as Listing } from "../types";
 import { Marks } from "./Marks";
+import { PhotoFrame } from "./PhotoFrame";
 import { Price } from "./Price";
 
 export function ListingCard({ listing, index }: { listing: Listing; index: number }) {
-  const [broken, setBroken] = useState(false);
   const photo = listing.photos[0] ? mediaUrl(listing.photos[0]) : "";
   const category = CATEGORY_LABEL[listing.category];
 
@@ -24,22 +23,8 @@ export function ListingCard({ listing, index }: { listing: Listing; index: numbe
       data-neighborhood={listing.neighborhood}
     >
       <Link className="lot-link" to={`/listings/${listing.id}`}>
-        <span className="lot-photo">
-          {photo && !broken ? (
-            <img
-              src={photo}
-              alt=""
-              width={800}
-              height={600}
-              loading={index < 4 ? "eager" : "lazy"}
-              decoding="async"
-              onError={() => setBroken(true)}
-            />
-          ) : (
-            <span className="photo-fallback">{category}</span>
-          )}
-        </span>
-        <Price amount={listing.price} count delay={Math.min(index, 7) * 0.05} />
+        <PhotoFrame src={photo} alt="" label={category} eager={index < 4} />
+        <Price amount={listing.price} />
         <h2 className="lot-title">{listing.title}</h2>
         <p className="lot-place">{listing.neighborhood}</p>
         <Marks

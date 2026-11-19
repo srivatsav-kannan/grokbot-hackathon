@@ -8,14 +8,15 @@ Set on `:root` in `src/styles.css`.
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `--paper` | `#F3EFE4` | Page background. Warm paper, not pure white. |
-| `--paper-2` | `#E6DFD0` | Photo wells, skeletons, empty slots. |
-| `--ink` | `#241C14` | Text, rules, focus, selected chips. 14.6:1 on paper. |
-| `--muted` | `#5C5146` | Neighborhoods, dates, secondary lines. 6.7:1 on paper. |
-| `--line` | `#D4C6AE` | Hairline dividers. |
-| `--gold` | `#8A6424` | Rules, the wordmark underline, good-deal underline, buyer spoke. Not body text. |
-| `--gold-fill` | `#D4B56A` | The Sample mark. Ink on this fill is 8.5:1. |
-| `--red` | `#9E1C14` | Search, Make an offer, Publish, Overpriced, No deal, error rule. 7.0:1 on paper and the reverse. |
+| `--paper` | `#FFFEFB` | Page background. Slightly warm white, not cream. |
+| `--paper-2` | `#FFF6D8` | Gold wash for the hero rail, drag-over, and empty slots. |
+| `--ink` | `#1C140F` | Text and focus. About 18:1 on the page. |
+| `--muted` | `#5C5146` | Neighborhoods and dates. About 7.6:1 on the page. |
+| `--line` | `#E2C56A` | Gold hairlines. |
+| `--gold` | `#8A6412` | Borders on badges, photos, and the rail. Not small body text. |
+| `--gold-fill` | `#E2B33C` | Wordmark underline, selected chips, Good deal, Sample, photo note. Ink on this fill is about 9:1. |
+| `--gold-deep` | `#C49214` | Hover on a gold fill. |
+| `--red` | `#9E1C14` | Search, Make an offer, Publish, Overpriced, No deal, and the error rule. |
 | `--red-deep` | `#7C140F` | Hover on red fills. |
 
 Focus is a 2px ink outline with a 3px offset. Gold is not used for small text or for focus.
@@ -41,8 +42,8 @@ Focus is a 2px ink outline with a 3px offset. Gold is not used for small text or
 Three places, all off when `prefers-reduced-motion: reduce`:
 
 1. The hero rail translates with scroll (GSAP ScrollTrigger). With listings it carries their photos and titles. Without listings it carries the words Bikes, Computers, Furniture, Priced, Checked. The rail is `aria-hidden`.
-2. Prices already on screen count up once (Motion). The real amount is in a visually hidden span so a screen reader does not hear the intermediate numbers.
-3. On a negotiation, a gold or ink spoke grows beside each turn as it scrolls into view. The words stay at full contrast.
+2. On a negotiation, a gold or ink spoke grows beside each turn as it scrolls into view. The words stay at full contrast. Prices render their final dollar amount immediately, once, for sighted readers and screen readers.
+3. The masthead shrinks after a short scroll so the first row of listings is not covered. `scroll-padding` follows the live header height.
 
 Lenis smooths wheel scrolling on a fine pointer wider than 800px, and only when motion is allowed. Phones keep native scrolling. Photo crops wipe in once as they enter; they are never hidden if script does not run.
 

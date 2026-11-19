@@ -1,18 +1,39 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { boardHref, CATEGORIES, CATEGORY_LABEL, parseCategory, parseSort } from "../lib/format";
 
 export function Header() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const headerRef = useRef<HTMLElement>(null);
   const q = params.get("q")?.trim() ?? "";
   const category = parseCategory(params.get("category"));
   const sort = parseSort(params.get("sort"));
   const [draft, setDraft] = useState(q);
+  const [compact, setCompact] = useState(false);
 
   useEffect(() => {
     setDraft(q);
   }, [q]);
+
+  useEffect(() => {
+    const onScroll = () => setCompact(window.scrollY > 64);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const node = headerRef.current;
+    if (!node) return;
+    const apply = () => {
+      document.documentElement.style.setProperty("--header-offset", `${node.offsetHeight}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [compact]);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,7 +45,12 @@ export function Header() {
   }
 
   return (
-    <header className="masthead" id="site-header">
+    <header
+      className={compact ? "masthead masthead-compact" : "masthead"}
+      id="site-header"
+      ref={headerRef}
+      data-compact={compact ? "true" : "false"}
+    >
       <div className="wrap masthead-bar">
         <Link className="wordmark" to="/" aria-label="Fairlot, home">
           Fairlot
@@ -54,7 +80,9 @@ export function Header() {
       </div>
       <div className="wrap">
         <form id="lot-search" className="lot-search" role="search" method="get" action="/" onSubmit={onSubmit}>
-          <label htmlFor="search-query">What do you want?</label>
+          <label htmlFor="search-query" className={compact ? "sr-only" : undefined}>
+            What do you want?
+          </label>
           <div className="search-row">
             <input
               id="search-query"
