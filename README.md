@@ -24,6 +24,8 @@ Classic classifieds make you refresh, squint at photos, and message strangers on
 
 One public service: FastAPI serves the React app and `/api`. Site-run agents (Scout, Appraiser, Inspector, Lister, Buyer, Seller) call the Grok API from the server. A user's own Grok Bot is only a client of a small HTTP JSON API. Details and the diagram: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+**Scout.** `POST /api/scout/run` reads Craigslist SF Bay public search result pages for bikes, computers, and furniture (one page per category, at most 3 network fetches per run, a 2 s pause between them, 20 s timeout, a plain `FairlotScout` User-Agent, no cookies, sign-in, posting, or messaging). It keeps title, price, neighborhood, one photo URL, category, and the source link, skips posts without a price, and strips anything that looks like a phone number or email from titles. Pages are cached on disk for an hour (`backend/data/scout_cache/`, gitignored), and listings already stored are skipped. A 401/403/429/503 or a CAPTCHA stops the run with `stopped: true` and a reason; it never retries or works around a challenge. Each new row is appraised and inspected before it is written, in the same transaction, so the feed never shows a listing without its badges. Seed listings stay in place.
+
 ```mermaid
 flowchart LR
   Web["User · web"]
@@ -70,11 +72,22 @@ python3 -m venv .venv && . .venv/bin/activate
 pip install -r backend/requirements.txt && uvicorn backend.app.main:app --port 8000
 ```
 
-`GROK_API_KEY` stays empty until a real model call. Optional: `GROK_API_BASE_URL`, `CORS_ORIGINS`, `DATABASE_PATH`. Copy `.env.example`. Frontend uses `VITE_API_BASE_URL` (empty means same origin). @unclesdad owns `frontend/`.
+`GROK_API_KEY` stays empty until a real model call. Optional: `GROK_API_BASE_URL`, `CORS_ORIGINS`, `DATABASE_PATH`, `SCOUT_LIVE`. Copy `.env.example`. Frontend uses `VITE_API_BASE_URL` (empty means same origin). @unclesdad owns `frontend/`.
 
 ```bash
 python -m pytest backend/tests -q
 ```
+
+Leave `SCOUT_LIVE` unset when running tests so they stay offline (the tests call `POST /api/scout/run`).
+
+Live Scout is off by default, so `POST /api/scout/run` adds nothing until you set `SCOUT_LIVE=1` in the server's environment:
+
+```bash
+SCOUT_LIVE=1 uvicorn backend.app.main:app --port 8000
+curl -X POST localhost:8000/api/scout/run -H 'Content-Type: application/json' -d '{"categories":["bikes","computers","furniture"]}'
+```
+
+On Windows PowerShell: `backend\.venv\Scripts\activate`, then `$env:SCOUT_LIVE="1"` before `uvicorn`.
 
 One service. FastAPI serves `frontend/dist` when that folder exists and still boots when it does not.
 
