@@ -4,5 +4,6 @@ __pycache__/
 *.pyc
 .env
 backend/data/*.db
+backend/data/scout_cache/
 frontend/node_modules/
 frontend/dist/

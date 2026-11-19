@@ -217,6 +217,12 @@ def run_scout(categories: list[str]) -> ScoutRunResponse:
         )
     added = 0
     for listing in result.listings:
+        # Scout ids come from the source URL, so a listing already stored is skipped.
+        if repo.get_listing(listing.id) is not None:
+            continue
+        # Appraise and inspect first. insert_listing writes the listing, appraisal,
+        # inspection, and limits in one transaction, so GET /api/listings never sees
+        # a scouted row without its badges.
         appraisal = appraise(listing)
         inspection = inspect(listing, appraisal)
         repo.insert_listing(listing, appraisal, inspection, limits_for_asking_price(listing.price))
