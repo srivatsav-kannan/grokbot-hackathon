@@ -1,0 +1,14 @@
+# Last match wins. Handles only.
+
+/frontend/ @unclesdad
+
+/backend/app/ @heruirayli
+/backend/tests/test_smoke.py @heruirayli
+/Dockerfile @heruirayli
+/.env.example @heruirayli
+/README.md @heruirayli
+/docs/GROKBOT_INTEGRATION.md @heruirayli
+
+/backend/app/agents/ @srivatsav-kannan
+/backend/tests/test_no_price_limit_leak.py @srivatsav-kannan
+/backend/app/agents/scout.py @heruirayli
