@@ -78,6 +78,7 @@ Authorization: Bearer tok_example_not_a_real_secret
     {
       "id": "neg_demo",
       "listing_id": "lst_demo",
+      "want_id": "wnt_demo",
       "status": "closed",
       "outcome": "deal",
       "messages": [
