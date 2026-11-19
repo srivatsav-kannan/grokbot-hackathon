@@ -4,10 +4,10 @@ import {
   ApiError,
   createWant,
   getListing,
+  mediaUrl,
   startNegotiation,
   targetWant,
 } from "../api/client";
-import { mediaUrl } from "../api/client";
 import { Marks } from "../components/Marks";
 import { Price } from "../components/Price";
 import { DetailSkeleton, ErrorNotice, Missing } from "../components/States";
@@ -78,11 +78,10 @@ export function ListingPage() {
     setAgentMessage("");
     try {
       const data = new FormData(event.currentTarget);
-      const existing = String(data.get("want_id") ?? "");
-      const token = String(data.get("token") ?? "");
-      if (existing && token) {
-        await targetWant(existing, token, listing.id);
-        navigate(`/wants/${existing}`);
+      const session = activeWant();
+      if (session && data.get("use_active") === "yes") {
+        await targetWant(session.id, session.token, listing.id);
+        navigate(`/wants/${session.id}`);
         return;
       }
       const text = String(data.get("text") ?? "").trim();
@@ -212,8 +211,7 @@ export function ListingPage() {
                     Point the buyer agent from “{current.text || "your latest search"}” at this
                     listing.
                   </p>
-                  <input type="hidden" name="want_id" value={current.id} />
-                  <input type="hidden" name="token" value={current.token} />
+                  <input type="hidden" name="use_active" value="yes" />
                 </>
               ) : (
                 <>

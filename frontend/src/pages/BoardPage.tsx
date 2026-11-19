@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, createWant, huntWant, listListings } from "../api/client";
 import { Hero } from "../components/Hero";
 import { ListingGrid } from "../components/ListingGrid";
@@ -39,6 +39,7 @@ function sortListings(rows: ListingCard[], sort: SortKey): ListingCard[] {
 
 export function BoardPage() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const rawCategory = params.get("category");
   const category = parseCategory(rawCategory);
   const invalidCategory = Boolean(rawCategory) && category === null;
@@ -88,7 +89,7 @@ export function BoardPage() {
       const created = await createWant({ text: q, category });
       saveWant(created.id, created.access_token, q);
       await huntWant(created.id, created.access_token);
-      window.location.assign(`/wants/${created.id}`);
+      navigate(`/wants/${created.id}`);
     } catch (err) {
       setAgentState("error");
       setAgentMessage(err instanceof ApiError ? err.message : "The buyer agent didn't start.");
@@ -114,7 +115,14 @@ export function BoardPage() {
               <input type="hidden" name="q" value={q} />
               {category ? <input type="hidden" name="category" value={category} /> : null}
               <label htmlFor="sort">Sort</label>
-              <select id="sort" name="sort" defaultValue={sort}>
+              <select
+                id="sort"
+                name="sort"
+                value={sort}
+                onChange={(event) => {
+                  navigate(boardHref({ q, category, sort: event.target.value }));
+                }}
+              >
                 <option value="newest">Newest</option>
                 <option value="price_asc">Price, low to high</option>
                 <option value="price_desc">Price, high to low</option>
