@@ -27,7 +27,7 @@ Twelve seed listings (`origin: "seed"`) ship with the API so the feed works befo
 
 ## How we built it
 
-One public service. **FastAPI** + **Uvicorn** serve `/api` (and `frontend/dist` when that folder exists) with **SQLite** for listings, wants, matches, negotiations, private limits, and tokens. **httpx** fetches Scout pages. Tests use **pytest**. The production image is a single **Docker** service (`python:3.12-slim`). The UI is **Vite + React + TypeScript**, owned by @unclesdad and merged in [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6). Pages: Board (`/`), Listing (`/listings/:id`), Sell (`/sell`), Want (`/wants/:id`), and Negotiation (`/negotiations/:id`). FastAPI serves `frontend/dist` when that folder exists, and the API still boots without it.
+One public service. **FastAPI** + **Uvicorn** serve `/api` (and `frontend/dist` when that folder exists) with **SQLite** for listings, wants, matches, negotiations, private limits, and tokens. **httpx** fetches Scout pages. Tests use **pytest**. The production image is a single **Docker** service (`python:3.12-slim`). The UI is **Vite + React + TypeScript**, owned by @unclesdad and merged in [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6). Pages: Board (`/`), Listing (`/listings/:id`), Sell (`/sell`), Want (`/wants/:id`), and Negotiation (`/negotiations/:id`). [PR #8](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/8) tightened the layouts and switched the board to a white and gold palette. FastAPI serves `frontend/dist` when that folder exists, and the API still boots without it.
 
 Site-run agents call a single seam, `complete()`, with `ANTHROPIC_API_KEY` (optional `ANTHROPIC_MODEL`) from the environment only. A user's own Grok Bot talks to the same HTTP JSON API. Call graph: [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
@@ -44,7 +44,7 @@ flowchart LR
   Svc["services + hunt runner"]
   Scout["Scout"]
   Agents["Appraiser · Inspector · Lister · Buyer · Negotiator"]
-  LLM["complete() Grok seam"]
+  LLM["complete() Claude seam"]
   DB[(SQLite)]
 
   Web --> API
@@ -66,12 +66,12 @@ flowchart LR
 
 ## Accomplishments
 
-- Frozen API contract with all 11 routes: listings, lister, negotiations, Scout, and the bearer-token wants API (create, read, hunt, target).
+- Frozen API contract with the listings, lister, negotiations, Scout, and bearer-token wants routes, plus `GET /api/health`.
 - SQLite schema and 12 seed listings across bikes, computers, and furniture, each with a verdict and a trust badge.
 - Private limits stay on the server; `access_token` is returned once from `POST /api/wants`.
 - Live Scout fetcher, merged in [PR #2](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/2), with cache, contact scrubbing, and a hard stop on challenges.
 - A one-service Docker image that boots with or without a frontend build.
-- Photo-first Vite + React + TypeScript UI, merged in [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6), with Board, Listing, Sell, Want, and Negotiation pages.
+- Photo-first Vite + React + TypeScript UI, merged in [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6), with Board, Listing, Sell, Want, and Negotiation pages. [PR #8](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/8) polished the board (white and gold, tighter layouts).
 
 ## What we learned
 
@@ -88,9 +88,9 @@ flowchart LR
 
 Each teammate used their own Grok Bot on a separate track, in parallel, on feature branches with small PRs into `main`.
 
-- @srivatsav-kannan's bot landed the server plumbing — routes, SQLite, seed data, agent stubs, Dockerfile, and tests — as [PR #1](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/1).
+- @srivatsav-kannan's bot landed the server plumbing — routes, SQLite, seed data, agent stubs, Dockerfile, and tests — as [PR #1](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/1), the Render deploy blueprint as [PR #4](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/4), and live Claude calls in `complete()` with stub fallbacks as [PR #5](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/5).
 - @heruirayli's Grok Bot built the live Scout fetcher as [PR #2](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/2) and wrote this README.
-- @unclesdad's bot landed the Vite + React + TypeScript UI as [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6).
+- @unclesdad's bot landed the Vite + React + TypeScript UI as [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6) and polished the board in [PR #8](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/8).
 
 ## How to run it
 
@@ -152,3 +152,5 @@ Set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` in the Render dashboard. Both are 
 The free plan has no persistent disk. SQLite lives at `/tmp/fairlot.db`. On startup, an empty listings table is seeded again.
 
 Free web services spin down after about 15 minutes without traffic. [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml) sends a keep-alive ping to `https://fairlot.onrender.com/api/health` every ~10 minutes, and the same ping can be run from the Actions tab.
+
+As of 3:57 PM PT on November 19, 2026, [https://fairlot.onrender.com](https://fairlot.onrender.com) served the built UI at `/` (the [PR #8](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/8) assets), deep links such as `/listings/lst_02` and `/sell` fell back to `index.html`, `GET /api/health` returned `{"ok": true}`, and `GET /api/listings` still had only the 12 seed listings.
