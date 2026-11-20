@@ -64,7 +64,7 @@ def count_listings(category: str | None = None) -> int:
 
 
 def list_listings(category: str | None, q: str | None, kind: str | None = None) -> list[ListingRecord]:
-    query = "SELECT * FROM listings WHERE 1=1"
+    query = "SELECT * FROM listings WHERE COALESCE(status, 'active') != 'sold'"
     params: list[str] = []
     if category:
         query += " AND category = ?"

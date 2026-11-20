@@ -11,6 +11,7 @@ import type {
   DealsResponse,
   SearchResponse,
   ThreadView,
+  SellerProfile,
   UserPublic,
   WantCreated,
   WantView,
@@ -98,6 +99,10 @@ export async function listListings(query: ListingsQuery = {}): Promise<ListingLi
   if (text) params.set("q", text);
   const suffix = params.size > 0 ? `?${params.toString()}` : "";
   return request<ListingListResponse>(`/api/listings${suffix}`, { signal: query.signal });
+}
+
+export function getSeller(id: string, signal?: AbortSignal): Promise<SellerProfile> {
+  return request<SellerProfile>(`/api/sellers/${encodeURIComponent(id)}`, { signal });
 }
 
 export function getListing(id: string, signal?: AbortSignal): Promise<ListingDetail> {

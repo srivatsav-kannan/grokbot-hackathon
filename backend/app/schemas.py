@@ -74,6 +74,13 @@ class Outreach(BaseModel):
     message: str
 
 
+class SellerSummary(BaseModel):
+    id: str
+    name: str
+    area: str | None = None
+    active_listings: int = 0
+
+
 class ListingDetail(ListingCard):
     description: str
     source_url: str | None
@@ -82,6 +89,17 @@ class ListingDetail(ListingCard):
     outreach: Outreach | None = None
     mine: bool = False
     my_thread_id: str | None = None
+    seller: SellerSummary | None = None
+
+
+class SellerProfile(BaseModel):
+    id: str
+    name: str
+    bio: str | None = None
+    area: str | None = None
+    joined: str
+    sold_count: int
+    listings: list[ListingCard]
 
 
 class ListingListResponse(BaseModel):

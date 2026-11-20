@@ -173,6 +173,11 @@ def get_listing(
     return services.get_listing(listing_id, viewer.id if viewer else None)
 
 
+@router.get("/sellers/{seller_id}")
+def get_seller(seller_id: str):
+    return services.seller_profile(seller_id)
+
+
 @router.post("/lister", response_model=ListerResponse)
 async def post_lister(photo: UploadFile = File(...)) -> ListerResponse:
     payload = await photo.read()

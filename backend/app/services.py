@@ -253,6 +253,7 @@ def get_listing(listing_id: str, user_id: str | None = None) -> ListingDetail:
     if listing is None:
         raise APIError(404, "not_found", "Listing not found.")
     detail = _detail(listing)
+    detail.seller = seller_summary(repo.get_listing_owner(listing_id))
     if user_id:
         detail.mine = repo.get_listing_owner(listing_id) == user_id
         with connect() as conn:
@@ -262,6 +263,63 @@ def get_listing(listing_id: str, user_id: str | None = None) -> ListingDetail:
             ).fetchone()
         detail.my_thread_id = None if row is None else str(row["id"])
     return detail
+
+
+def _seller_name(row) -> str:
+    name = (row["display_name"] or "").strip() if "display_name" in row.keys() else ""
+    return name or f"Seller {str(row['id'])[-4:].upper()}"
+
+
+def seller_summary(user_id: str | None) -> "SellerSummary | None":
+    from backend.app.schemas import SellerSummary
+
+    if not user_id:
+        return None
+    with connect() as conn:
+        row = conn.execute("SELECT id, display_name, area FROM users WHERE id = ?", (user_id,)).fetchone()
+        if row is None:
+            return None
+        count = conn.execute(
+            "SELECT COUNT(*) AS n FROM listings WHERE user_id = ? AND COALESCE(status, 'active') != 'sold'",
+            (user_id,),
+        ).fetchone()["n"]
+    return SellerSummary(id=str(row["id"]), name=_seller_name(row), area=row["area"], active_listings=int(count))
+
+
+def seller_profile(user_id: str):
+    from backend.app.schemas import SellerProfile
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id, display_name, bio, area, created_at FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if row is None:
+            raise APIError(404, "not_found", "Seller not found.")
+        ids = [
+            str(r["id"])
+            for r in conn.execute(
+                """
+                SELECT id FROM listings WHERE user_id = ? AND COALESCE(status, 'active') != 'sold'
+                ORDER BY posted_at DESC
+                """,
+                (user_id,),
+            ).fetchall()
+        ]
+        sold = conn.execute("SELECT COUNT(*) AS n FROM completions WHERE seller_id = ?", (user_id,)).fetchone()["n"]
+    cards = []
+    for listing_id in ids:
+        listing = repo.get_listing(listing_id)
+        if listing is not None:
+            cards.append(_card(listing))
+    return SellerProfile(
+        id=str(row["id"]),
+        name=_seller_name(row),
+        bio=row["bio"],
+        area=row["area"],
+        joined=str(row["created_at"]),
+        sold_count=int(sold),
+        listings=cards,
+    )
 
 
 def create_draft(photo: bytes, filename: str | None) -> ListerResponse:

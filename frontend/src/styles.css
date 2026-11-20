@@ -1526,3 +1526,9 @@ button:disabled {
 
 .as-button { display: inline-block; text-align: center; text-decoration: none; padding: 0.65rem 1rem; border-radius: 8px; width: fit-content; }
 .owner-panel { border-color: rgba(15, 110, 86, 0.35); background: rgba(15, 110, 86, 0.05); }
+
+.seller-line { margin: 0.5rem 0; font-size: 0.92rem; }
+.seller-line a { color: inherit; }
+.seller-head { display: flex; gap: 1rem; align-items: flex-start; margin: 0.5rem 0 1.5rem; }
+.seller-head h1 { margin: 0; font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
+.seller-avatar { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; background: #0f6e56; color: #fff; font-size: 1.4rem; font-weight: 700; }

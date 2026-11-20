@@ -404,11 +404,15 @@ def init_db() -> None:
         _add_column(conn, "listings", "user_id", "TEXT")
         _add_column(conn, "listings", "status", "TEXT NOT NULL DEFAULT 'active'")
         _add_column(conn, "wants", "user_id", "TEXT")
+        _add_column(conn, "users", "display_name", "TEXT")
+        _add_column(conn, "users", "bio", "TEXT")
+        _add_column(conn, "users", "area", "TEXT")
         _add_column(conn, "negotiations", "user_id", "TEXT")
         _add_column(conn, "negotiations", "accepted", "INTEGER NOT NULL DEFAULT 0")
         count = conn.execute("SELECT COUNT(*) AS n FROM listings").fetchone()["n"]
-    from backend.app.seed import load_demo, load_seed
+    from backend.app.seed import load_demo, load_seed, load_sellers
 
     load_seed()
+    load_sellers()
     load_demo()
 

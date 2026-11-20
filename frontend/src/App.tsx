@@ -11,6 +11,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { NegotiationPage } from "./pages/NegotiationPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SellPage } from "./pages/SellPage";
+import { SellerPage } from "./pages/SellerPage";
 import { SignupPage } from "./pages/SignupPage";
 import { WantPage } from "./pages/WantPage";
 
@@ -48,6 +49,7 @@ export function App() {
           <Route path="/listings/:id" element={<ListingPage />} />
           <Route path="/negotiations/:id" element={<NegotiationPage />} />
           <Route path="/sell" element={<SellPage />} />
+          <Route path="/sellers/:id" element={<SellerPage />} />
           <Route path="/wants/:id" element={<WantPage />} />
           <Route path="/bots" element={<BotsPage />} />
           <Route path="/login" element={<LoginPage />} />

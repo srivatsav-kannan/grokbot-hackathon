@@ -169,6 +169,18 @@ export function ListingPage() {
             sourceName={listing.source_name}
           />
           <p className="description">{listing.description}</p>
+          {listing.seller ? (
+            <p className="seller-line">
+              Sold by{" "}
+              <Link to={`/sellers/${listing.seller.id}`}>
+                <strong>{listing.seller.name}</strong>
+              </Link>
+              {listing.seller.area ? ` · ${listing.seller.area}` : ""}
+              {listing.seller.active_listings > 1
+                ? ` · ${listing.seller.active_listings - 1} other listing${listing.seller.active_listings - 1 === 1 ? "" : "s"}`
+                : ""}
+            </p>
+          ) : null}
           {listing.sold_for != null ? <p className="sold-line">Sold for {formatUsd(listing.sold_for)}</p> : null}
           {listing.source_url ? (
             <p>

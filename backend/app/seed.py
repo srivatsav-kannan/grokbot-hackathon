@@ -69,6 +69,54 @@ _DEMO_LISTING = "lst_24"
 _SAMPLE_BUYER = "sample-buyer@fairlot.app"
 
 
+# Sample sellers. Each owns a set of samples, so every listing has a seller profile.
+_SELLERS: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = (
+    (
+        "maya@fairlot.app",
+        "Maya R.",
+        "Mission, San Francisco",
+        "Fixes up bikes on weekends and sells the ones she has tuned. Happy to meet near BART.",
+        ("lst_01", "lst_02", "lst_05", "lst_06", "lst_19", "lst_21"),
+    ),
+    (
+        "daniel@fairlot.app",
+        "Daniel K.",
+        "Palo Alto",
+        "Grad student on the Peninsula. Selling laptops and gear after upgrading, plus a few bikes.",
+        ("lst_03", "lst_04", "lst_07", "lst_08", "lst_09", "lst_10", "lst_11", "lst_12", "lst_20"),
+    ),
+    (
+        "priya@fairlot.app",
+        "Priya S.",
+        "Oakland",
+        "Moving out of a shared house in the East Bay. Furniture has to go this month.",
+        ("lst_14", "lst_15", "lst_16", "lst_17", "lst_18", "lst_22", "lst_23"),
+    ),
+)
+
+
+def load_sellers() -> None:
+    import secrets as _secrets
+
+    from backend.app import repository as repo
+    from backend.app.services import signup
+
+    for email, name, area, bio, listing_ids in _SELLERS:
+        if repo.get_user_by_email(email) is None:
+            signup(email, _secrets.token_urlsafe(18))
+        user = repo.get_user_by_email(email)[0]
+        with connect() as conn:
+            conn.execute(
+                "UPDATE users SET display_name = ?, area = ?, bio = ? WHERE id = ?",
+                (name, area, bio, user.id),
+            )
+            for listing_id in listing_ids:
+                conn.execute(
+                    "UPDATE listings SET user_id = ? WHERE id = ? AND origin = 'seed' AND user_id IS NULL",
+                    (user.id, listing_id),
+                )
+
+
 def load_demo() -> None:
     """Shared judge account. It owns one sample listing with an offer waiting, so both sides can be tried."""
 
@@ -84,6 +132,11 @@ def load_demo() -> None:
     demo = repo.get_user_by_email(DEMO_EMAIL)[0]
     buyer = repo.get_user_by_email(_SAMPLE_BUYER)[0]
     with connect() as conn:
+        conn.execute(
+            "UPDATE users SET display_name = 'Demo seller', area = 'Palo Alto', bio = 'The shared judge account.' WHERE id = ?",
+            (demo.id,),
+        )
+        conn.execute("UPDATE users SET display_name = 'Sample buyer' WHERE id = ?", (buyer.id,))
         conn.execute(
             "UPDATE listings SET user_id = ? WHERE id = ? AND user_id IS NULL",
             (demo.id, _DEMO_LISTING),
