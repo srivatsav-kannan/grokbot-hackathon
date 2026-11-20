@@ -16,3 +16,15 @@ services:
         sync: false
       - key: ANTHROPIC_MODEL
         sync: false
+      - key: ANTHROPIC_INSPECTOR_MODEL
+        sync: false
+      - key: ANTHROPIC_MESSAGE_MODEL
+        sync: false
+      - key: ANTHROPIC_MESSAGE_EFFORT
+        sync: false
+      - key: SCOUT_LIVE
+        value: "1"
+      - key: SCOUT_INTERVAL_S
+        value: "600"
+      - key: BACKGROUND_INTERVAL_S
+        value: "120"

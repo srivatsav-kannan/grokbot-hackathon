@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ApiError, getListing, getNegotiation } from "../api/client";
+import { acceptNegotiation, ApiError, getListing, getNegotiation } from "../api/client";
 import { TranscriptSkeleton, ErrorNotice, Missing } from "../components/States";
 import { formatStamp, formatUsd, FROM_LABEL, KIND_LABEL } from "../lib/format";
 import { gsap, ScrollTrigger, useReducedMotion } from "../lib/scroll";
@@ -16,6 +16,8 @@ export function NegotiationPage() {
   const { id = "" } = useParams();
   const [attempt, setAttempt] = useState(0);
   const [load, setLoad] = useState<Load>({ status: "loading" });
+  const [accepting, setAccepting] = useState(false);
+  const [acceptError, setAcceptError] = useState("");
   const root = useRef<HTMLOListElement>(null);
   const reduced = useReducedMotion();
 
@@ -118,7 +120,31 @@ export function NegotiationPage() {
         <h1 className={deal ? "outcome-word outcome-deal" : "outcome-word outcome-no_deal"}>
           {deal ? "Deal" : "No deal"}
         </h1>
-        <p>This negotiation is finished. The transcript shows offers only. Price limits stay on the server.</p>
+        <p>
+          {negotiation.accepted
+            ? "You accepted this deal."
+            : "This negotiation is finished. The transcript shows offers only. Price limits stay on the server."}
+        </p>
+        {deal && !negotiation.accepted ? (
+          <button
+            type="button"
+            className="button-primary"
+            disabled={accepting}
+            onClick={() => {
+              setAccepting(true);
+              setAcceptError("");
+              acceptNegotiation(negotiation.id)
+                .then(() => setAttempt((value) => value + 1))
+                .catch((err: unknown) => {
+                  setAcceptError(err instanceof ApiError ? err.message : "Could not accept the deal.");
+                  setAccepting(false);
+                });
+            }}
+          >
+            {accepting ? "Accepting…" : "Accept deal"}
+          </button>
+        ) : null}
+        {acceptError ? <p className="form-error">{acceptError}</p> : null}
       </header>
       {negotiation.messages.length === 0 ? (
         <p>No offers were recorded.</p>

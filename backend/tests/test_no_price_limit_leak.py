@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
+from backend.tests.conftest import sign_in
 from backend.app.agents.appraiser import appraise
 from backend.app.agents.buyer import match_listings, parse_want, private_max_from_text
 from backend.app.agents.inspector import inspect
@@ -89,6 +90,8 @@ def _examples(node, found: list) -> None:
 
 
 def test_responses_and_openapi_hide_private_fields(client):
+    account = sign_in(client)
+    _assert_public(account, allow_token_field=False)
     created = client.post(
         "/api/wants",
         json={"text": "road bike under $12345 in SF", "category": "bikes"},
@@ -116,6 +119,22 @@ def test_responses_and_openapi_hide_private_fields(client):
     negotiation_id = payloads[2]["id"]
     payloads.append(client.get(f"/api/negotiations/{negotiation_id}").json())
     payloads.append(client.post("/api/scout/run", json={"categories": ["bikes"]}).json())
+    published = client.post(
+        "/api/listings",
+        json={
+            "category": "furniture",
+            "title": "Demo oak stool",
+            "description": "A sample publish used to prove the private floor stays on the server.",
+            "price": 180,
+            "photos": ["/placeholders/furniture.svg"],
+            "neighborhood": "Mission, San Francisco",
+            "minimum": 33333,
+        },
+    )
+    assert published.status_code == 201
+    payloads.append(published.json())
+    payloads.append(client.get("/api/activity").json())
+    payloads.append(client.get("/api/auth/me").json())
 
     for payload in payloads:
         _assert_public(payload, token=token, allow_token_field=False)
@@ -131,6 +150,11 @@ def test_responses_and_openapi_hide_private_fields(client):
         assert forbidden not in blob
     assert token not in json.dumps(schema)
     assert "12345" not in json.dumps(schema)
+    assert "33333" not in json.dumps(schema)
+    activity = client.get("/api/activity").json()
+    activity_blob = json.dumps(activity)
+    for secret in ("12345", "33333", "buyer_max", "seller_min", "price_limits", "access_token"):
+        assert secret not in activity_blob
 
 
 def test_agent_prompts_and_transcripts_omit_private_limits(client, monkeypatch):
@@ -140,7 +164,7 @@ def test_agent_prompts_and_transcripts_omit_private_limits(client, monkeypatch):
     seller_min = 22222
     prompts: list[str] = []
 
-    def capture(prompt, *, image=None, timeout_s=8.0):
+    def capture(prompt, *, image=None, timeout_s=8.0, **_extra):
         prompts.append(prompt)
         return None
 

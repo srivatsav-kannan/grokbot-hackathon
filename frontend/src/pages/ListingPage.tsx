@@ -16,6 +16,7 @@ import {
   CATEGORY_LABEL,
   formatUsd,
   formatWhen,
+  loginPath,
   verdictReason,
 } from "../lib/format";
 import { activeWant, saveWant } from "../lib/session";
@@ -65,6 +66,10 @@ export function ListingPage() {
       const negotiation = await startNegotiation(listing.id);
       navigate(`/negotiations/${negotiation.id}`);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        navigate(loginPath(`/listings/${listing.id}`));
+        return;
+      }
       setOfferState("error");
       setOfferMessage(err instanceof ApiError ? err.message : "The offer didn't go through.");
     }
@@ -87,10 +92,14 @@ export function ListingPage() {
       const created = await createWant({ text, category: listing.category });
       saveWant(created.id, created.access_token, text);
       await targetWant(created.id, created.access_token, listing.id);
-      navigate(`/wants/${created.id}`);
+      navigate("/bots");
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        navigate(loginPath(`/listings/${listing.id}`));
+        return;
+      }
       setAgentState("error");
-      setAgentMessage(err instanceof ApiError ? err.message : "The buyer agent didn't start.");
+      setAgentMessage(err instanceof ApiError ? err.message : "The buyer bot didn't start.");
     }
   }
 
@@ -173,6 +182,7 @@ export function ListingPage() {
             verdict={listing.appraisal.verdict}
             trust={listing.inspection.trust_level}
             origin={listing.origin}
+            sourceName={listing.source_name}
           />
           <p className="description">{listing.description}</p>
           {listing.source_url ? (
@@ -184,22 +194,26 @@ export function ListingPage() {
           ) : null}
 
           <div className="actions">
-            <form method="post" action="/api/negotiations" onSubmit={onOffer}>
-              <input type="hidden" name="listing_id" value={listing.id} />
-              <button
-                type="submit"
-                className="button-primary"
-                data-action="make-offer"
-                disabled={offerState === "working"}
-              >
-                {offerState === "working" ? "Making an offer…" : "Make an offer"}
-              </button>
-            </form>
-            {offerState === "error" ? (
-              <p className="form-error" role="alert">
-                {offerMessage}
-              </p>
-            ) : null}
+            {listing.origin === "scout" ? null : (
+              <>
+                <form method="post" action="/api/negotiations" onSubmit={onOffer}>
+                  <input type="hidden" name="listing_id" value={listing.id} />
+                  <button
+                    type="submit"
+                    className="button-primary"
+                    data-action="make-offer"
+                    disabled={offerState === "working"}
+                  >
+                    {offerState === "working" ? "Making an offer…" : "Make an offer"}
+                  </button>
+                </form>
+                {offerState === "error" ? (
+                  <p className="form-error" role="alert">
+                    {offerMessage}
+                  </p>
+                ) : null}
+              </>
+            )}
 
             <form className="agent-form" onSubmit={onAgent}>
               {current ? (

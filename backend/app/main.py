@@ -5,6 +5,8 @@ Person C (@heruirayli) owns this file. A missing frontend build must not stop th
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.app.background import background_enabled, background_loop
 from backend.app.db import init_db
 from backend.app.errors import APIError
 from backend.app.routes import router
@@ -27,7 +30,18 @@ PLACEHOLDERS = Path(__file__).resolve().parent / "placeholders"
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
-    yield
+    stop = asyncio.Event()
+    task: asyncio.Task[None] | None = None
+    if background_enabled():
+        task = asyncio.create_task(background_loop(stop))
+    try:
+        yield
+    finally:
+        stop.set()
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(title="Fairlot", version="0.1.0", lifespan=lifespan)
@@ -41,6 +55,7 @@ _origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Authorization"],
 )

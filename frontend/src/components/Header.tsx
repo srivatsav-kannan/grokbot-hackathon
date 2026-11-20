@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import { NotificationBell } from "./NotificationBell";
+import { useAuth } from "../auth";
 import { boardHref, CATEGORIES, CATEGORY_LABEL, parseCategory, parseSort } from "../lib/format";
 
 export function Header() {
@@ -11,6 +13,7 @@ export function Header() {
   const sort = parseSort(params.get("sort"));
   const [draft, setDraft] = useState(q);
   const [compact, setCompact] = useState(false);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     setDraft(q);
@@ -74,9 +77,22 @@ export function Header() {
             </Link>
           ))}
         </nav>
-        <NavLink id="add-listing" className="add-listing" to="/sell">
-          Add a listing
-        </NavLink>
+        <div className="mast-actions">
+          <NotificationBell />
+          {user ? (
+            <Link to="/bots">My bots</Link>
+          ) : (
+            <Link to="/login">Log in</Link>
+          )}
+          {user ? (
+            <button type="button" className="text-button" onClick={() => void logout()}>
+              Log out
+            </button>
+          ) : null}
+          <NavLink id="add-listing" className="add-listing" to="/sell">
+            Sell
+          </NavLink>
+        </div>
       </div>
       <div className="wrap">
         <form id="lot-search" className="lot-search" role="search" method="get" action="/" onSubmit={onSubmit}>

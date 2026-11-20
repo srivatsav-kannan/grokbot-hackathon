@@ -63,6 +63,7 @@ class ListingCard(BaseModel):
     neighborhood: str
     posted_at: str
     origin: Origin
+    source_name: str
     appraisal: AppraisalSummary
     inspection: InspectionSummary
 
@@ -98,6 +99,8 @@ class PublishListingRequest(BaseModel):
     price: int = Field(ge=0)
     photos: list[str] = Field(min_length=1)
     neighborhood: str = Field(min_length=1)
+    # Stored server-side for the seller agent. Never copied onto a response.
+    minimum: int | None = Field(default=None, ge=0)
 
 
 class NegotiationMessage(BaseModel):
@@ -116,6 +119,7 @@ class Negotiation(BaseModel):
     want_id: str | None = None
     status: NegotiationStatus
     outcome: Outcome
+    accepted: bool = False
     messages: list[NegotiationMessage]
 
 
@@ -170,8 +174,20 @@ class WantMatchPublic(BaseModel):
     reason: str
     title: str
     price: int
+    origin: Origin
+    source_name: str
+    source_url: str | None = None
     appraisal: AppraisalSummary
     inspection: InspectionSummary
+
+
+class RecommendationPublic(BaseModel):
+    listing_id: str
+    title: str
+    source_name: str
+    source_url: str | None
+    suggested_offer: int
+    message: str
 
 
 class WantView(BaseModel):
@@ -181,12 +197,87 @@ class WantView(BaseModel):
     status: WantStatus
     matches: list[WantMatchPublic]
     negotiations: list[Negotiation]
+    recommendations: list[RecommendationPublic] = Field(default_factory=list)
+
+
+class AuthRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    email: str = Field(min_length=3, max_length=200)
+    password: str = Field(min_length=8, max_length=200)
+
+
+class UserPublic(BaseModel):
+    id: str
+    email: str
+
+
+class ActivityEvent(BaseModel):
+    at: str
+    message: str
+
+
+class ActivityResponse(BaseModel):
+    events: list[ActivityEvent]
 
 
 class WantTargetRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     listing_id: str
+
+
+class SearchRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    q: str = ""
+    category: Category | None = None
+
+
+class SearchResponse(BaseModel):
+    listings: list[ListingCard]
+    scouted: bool
+
+
+class BuyerBot(BaseModel):
+    id: str
+    text: str
+    status: WantStatus
+    matches: list[WantMatchPublic]
+    negotiations: list[Negotiation]
+    recommendations: list[RecommendationPublic]
+
+
+class SellerBot(BaseModel):
+    listing_id: str
+    title: str
+    price: int
+    negotiations: list[Negotiation]
+
+
+class BotsResponse(BaseModel):
+    buyers: list[BuyerBot]
+    sellers: list[SellerBot]
+
+
+class NotificationPublic(BaseModel):
+    id: str
+    at: str
+    kind: str
+    message: str
+    href: str | None
+    unread: bool
+
+
+class NotificationsResponse(BaseModel):
+    unread: int
+    notifications: list[NotificationPublic]
+
+
+class MarkReadRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    ids: list[str] | None = None
 
 
 class ErrorBody(BaseModel):

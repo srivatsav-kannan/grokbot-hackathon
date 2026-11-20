@@ -73,7 +73,7 @@ def test_inspect_falls_back_to_stub_without_a_model(monkeypatch):
 
 
 def test_inspect_merges_heuristics_with_model_signals(monkeypatch):
-    def reply(prompt, *, image=None, timeout_s=8.0):
+    def reply(prompt, *, image=None, timeout_s=8.0, **_extra):
         assert "11111" not in prompt
         assert "22222" not in prompt
         assert "buyer_max" not in prompt
@@ -123,3 +123,21 @@ def test_clean_listing_stays_high_trust_when_the_model_agrees(monkeypatch):
     report = inspect(listing, appraisal)
     assert report.trust_level == "high"
     assert report.signals == []
+
+
+def test_inspector_calls_sonnet_unless_the_env_overrides_it(monkeypatch):
+    seen: dict[str, str] = {}
+
+    def capture(*_args, **kwargs):
+        seen["model"] = kwargs.get("model", "")
+        return None
+
+    monkeypatch.setattr("backend.app.agents.inspector.complete", capture)
+    monkeypatch.delenv("ANTHROPIC_INSPECTOR_MODEL", raising=False)
+    listing = _listing()
+    inspect(listing, stub_appraise(listing))
+    assert seen["model"] == "claude-sonnet-5-5"
+
+    monkeypatch.setenv("ANTHROPIC_INSPECTOR_MODEL", "claude-custom")
+    inspect(listing, stub_appraise(listing))
+    assert seen["model"] == "claude-custom"

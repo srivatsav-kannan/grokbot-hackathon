@@ -16,37 +16,66 @@ import httpx
 
 _API_URL = "https://api.anthropic.com/v1/messages"
 _API_VERSION = "2023-06-01"
-_DEFAULT_MODEL = "claude-sonnet-5-5"
+_EFFORT_API_VERSION = "2026-10-21"
+_DEFAULT_MODEL = "claude-haiku-4-5"
+_DEFAULT_MESSAGE_MODEL = "claude-opus-5-5"
+_DEFAULT_EFFORT = "low"
 _MAX_TOKENS = 1024
 _FENCE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
 
 
-def complete(prompt: str, *, image: bytes | None = None, timeout_s: float = 8.0) -> str | None:
+def message_model() -> str:
+    return os.environ.get("ANTHROPIC_MESSAGE_MODEL", "").strip() or _DEFAULT_MESSAGE_MODEL
+
+
+def message_effort() -> str:
+    return os.environ.get("ANTHROPIC_MESSAGE_EFFORT", "").strip() or _DEFAULT_EFFORT
+
+
+def complete(
+    prompt: str,
+    *,
+    image: bytes | None = None,
+    timeout_s: float = 8.0,
+    model: str | None = None,
+    effort: str | None = None,
+    max_tokens: int | None = None,
+) -> str | None:
     key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not key or timeout_s <= 0 or not prompt.strip():
         return None
-    model = os.environ.get("ANTHROPIC_MODEL", "").strip() or _DEFAULT_MODEL
-    body = {
-        "model": model,
-        "max_tokens": _MAX_TOKENS,
+    chosen = (model or os.environ.get("ANTHROPIC_MODEL", "").strip() or _DEFAULT_MODEL)
+    cap = _MAX_TOKENS if max_tokens is None else max(1, min(int(max_tokens), _MAX_TOKENS))
+    body: dict[str, object] = {
+        "model": chosen,
+        "max_tokens": cap,
         "messages": [{"role": "user", "content": _message_content(prompt, image)}],
     }
+    if effort:
+        body["output_config"] = {"effort": effort}
     try:
         with httpx.Client(timeout=httpx.Timeout(timeout_s), follow_redirects=False) as client:
-            response = client.post(
-                _API_URL,
-                headers={
-                    "x-api-key": key,
-                    "anthropic-version": _API_VERSION,
-                    "content-type": "application/json",
-                },
-                json=body,
-            )
+            response = _post(client, body, _EFFORT_API_VERSION if effort else _API_VERSION)
+            if response.status_code == 400 and "output_config" in body:
+                retry = {key: value for key, value in body.items() if key != "output_config"}
+                response = _post(client, retry, _API_VERSION)
         if response.status_code != 200:
             return None
         return _message_text(response.json())
     except Exception:
         return None
+
+
+def _post(client: httpx.Client, body: dict[str, object], version: str) -> httpx.Response:
+    return client.post(
+        _API_URL,
+        headers={
+            "x-api-key": os.environ.get("ANTHROPIC_API_KEY", "").strip(),
+            "anthropic-version": version,
+            "content-type": "application/json",
+        },
+        json=body,
+    )
 
 
 def parse_json_reply(text: str | None) -> dict | list | None:

@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS listings (
     neighborhood TEXT NOT NULL,
     source_url TEXT,
     posted_at TEXT NOT NULL,
-    origin TEXT NOT NULL
+    origin TEXT NOT NULL,
+    user_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS appraisals (
@@ -46,6 +47,8 @@ CREATE TABLE IF NOT EXISTS negotiations (
     status TEXT NOT NULL,
     outcome TEXT NOT NULL,
     messages TEXT NOT NULL,
+    accepted INTEGER NOT NULL DEFAULT 0,
+    user_id TEXT,
     FOREIGN KEY (listing_id) REFERENCES listings(id)
 );
 
@@ -64,7 +67,8 @@ CREATE TABLE IF NOT EXISTS wants (
     area TEXT,
     keywords TEXT NOT NULL,
     status TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    user_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS want_access (
@@ -83,7 +87,56 @@ CREATE TABLE IF NOT EXISTS want_matches (
     FOREIGN KEY (want_id) REFERENCES wants(id),
     FOREIGN KEY (listing_id) REFERENCES listings(id)
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    message TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    message TEXT NOT NULL,
+    href TEXT,
+    read_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS recommendations (
+    want_id TEXT NOT NULL,
+    listing_id TEXT NOT NULL,
+    suggested_offer INTEGER NOT NULL,
+    message TEXT NOT NULL,
+    PRIMARY KEY (want_id, listing_id),
+    FOREIGN KEY (want_id) REFERENCES wants(id),
+    FOREIGN KEY (listing_id) REFERENCES listings(id)
+);
 """
+
+
+def _column_names(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _add_column(conn: sqlite3.Connection, table: str, name: str, ddl: str) -> None:
+    if name not in _column_names(conn, table):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
 
 def db_path() -> Path:
@@ -105,6 +158,10 @@ def connect() -> sqlite3.Connection:
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        _add_column(conn, "listings", "user_id", "TEXT")
+        _add_column(conn, "wants", "user_id", "TEXT")
+        _add_column(conn, "negotiations", "user_id", "TEXT")
+        _add_column(conn, "negotiations", "accepted", "INTEGER NOT NULL DEFAULT 0")
         count = conn.execute("SELECT COUNT(*) AS n FROM listings").fetchone()["n"]
     if count == 0:
         from backend.app.seed import load_seed

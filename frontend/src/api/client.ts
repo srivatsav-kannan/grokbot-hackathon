@@ -1,11 +1,15 @@
 import type {
+  BotsResponse,
   Category,
   ErrorResponse,
   ListerResponse,
   ListingDetail,
   ListingListResponse,
   Negotiation,
+  NotificationsResponse,
   PublishListingRequest,
+  SearchResponse,
+  UserPublic,
   WantCreated,
   WantView,
 } from "../types";
@@ -57,7 +61,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   let response: Response;
   try {
-    response = await fetch(apiUrl(path), { ...init, headers });
+    response = await fetch(apiUrl(path), { ...init, headers, credentials: "include" });
   } catch (err) {
     if (isAbort(err)) throw err;
     throw new ApiError("unreachable", "The board didn't respond.", 0);
@@ -113,6 +117,7 @@ export function publishListing(body: PublishListingRequest): Promise<ListingDeta
     photos: body.photos,
     neighborhood: body.neighborhood,
   };
+  if (body.minimum != null) payload.minimum = body.minimum;
   return request<ListingDetail>("/api/listings", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -173,4 +178,65 @@ export function targetWant(id: string, token: string, listingId: string): Promis
     headers: bearer(token),
     body: JSON.stringify({ listing_id: listingId }),
   });
+}
+
+export function signup(email: string, password: string): Promise<UserPublic> {
+  return request<UserPublic>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function login(email: string, password: string): Promise<UserPublic> {
+  return request<UserPublic>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function getMe(signal?: AbortSignal): Promise<UserPublic> {
+  return request<UserPublic>("/api/auth/me", { signal });
+}
+
+export async function logout(): Promise<void> {
+  await fetch(apiUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
+}
+
+export function searchListings(
+  q: string,
+  category?: Category | null,
+  signal?: AbortSignal,
+): Promise<SearchResponse> {
+  const payload: { q: string; category?: Category } = { q };
+  if (category) payload.category = category;
+  return request<SearchResponse>("/api/search", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    signal,
+  });
+}
+
+export function getBots(signal?: AbortSignal): Promise<BotsResponse> {
+  return request<BotsResponse>("/api/bots", { signal });
+}
+
+export function getNotifications(signal?: AbortSignal): Promise<NotificationsResponse> {
+  return request<NotificationsResponse>("/api/notifications", { signal });
+}
+
+export function markNotificationsRead(ids?: string[]): Promise<NotificationsResponse> {
+  return request<NotificationsResponse>("/api/notifications/read", {
+    method: "POST",
+    body: JSON.stringify(ids ? { ids } : {}),
+  });
+}
+
+export function acceptNegotiation(id: string): Promise<Negotiation> {
+  return request<Negotiation>(`/api/negotiations/${encodeURIComponent(id)}/accept`, {
+    method: "POST",
+  });
+}
+
+export function getActivity(signal?: AbortSignal): Promise<{ events: { at: string; message: string }[] }> {
+  return request("/api/activity", { signal });
 }

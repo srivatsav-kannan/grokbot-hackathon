@@ -99,7 +99,7 @@ def test_complete_posts_messages_and_image_block(monkeypatch):
     assert "test-key-not-real" not in json.dumps(captured["json"])
 
 
-def test_complete_uses_default_sonnet_and_ignores_non_200(monkeypatch):
+def test_complete_uses_default_haiku_and_ignores_non_200(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-real")
     monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
     captured: dict = {}
@@ -141,9 +141,52 @@ def test_complete_uses_default_sonnet_and_ignores_non_200(monkeypatch):
 
     monkeypatch.setattr(httpx, "Client", Client)
     assert complete("hello") == "hi"
-    assert captured["model"] == "claude-sonnet-5-5"
+    assert captured["model"] == "claude-haiku-4-5"
     assert captured["url"] == "https://api.anthropic.com/v1/messages"
     assert complete("hello") is None
+
+
+def test_effort_is_sent_and_retried_without_it_on_400(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-real")
+    captured: list[tuple] = []
+
+    class Response:
+        def __init__(self, status: int, text: str = "ok") -> None:
+            self.status_code = status
+            self._text = text
+
+        def json(self):
+            return {"content": [{"type": "text", "text": self._text}]}
+
+    class Client:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def post(self, url, headers, json):
+            captured.append(
+                (
+                    headers["anthropic-version"],
+                    json.get("output_config"),
+                    json["model"],
+                    json["max_tokens"],
+                )
+            )
+            if len(captured) == 1:
+                return Response(400)
+            return Response(200, "phrased")
+
+    monkeypatch.setattr(httpx, "Client", Client)
+    assert complete("hello", model="claude-opus-5-5", effort="low", max_tokens=400) == "phrased"
+    assert captured[0] == ("2026-10-21", {"effort": "low"}, "claude-opus-5-5", 400)
+    assert captured[1][0] == "2023-06-01"
+    assert captured[1][1] is None
+    assert captured[1][2] == "claude-opus-5-5"
 
 
 @pytest.mark.parametrize(
