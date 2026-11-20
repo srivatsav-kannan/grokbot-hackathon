@@ -919,8 +919,10 @@ def _public_line(message: str, fallback: str) -> str:
     lowered = message.lower()
     if any(word in lowered for word in _FORBIDDEN_WORDS):
         return fallback
+    import re as _re
+
     for number in repo.secret_numbers():
-        if str(number) in message:
+        if _re.search(rf"(?<![\d.,]){number}(?![\d.,]\d)", message):
             return fallback
     return message
 

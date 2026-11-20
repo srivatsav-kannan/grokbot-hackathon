@@ -223,13 +223,26 @@ def main() -> int:
     _, w2 = buyer.call("POST", "/wants", {"text": f"chair under $200 qa {RUN}", "max_price": 200})
     check("starting the same buyer bot twice gives one bot", w1.get("id") == w2.get("id"), (w1.get("id"), w2.get("id")))
     status, h1 = buyer.call("POST", f"/wants/{w1['id']}/hunt")
-    check("buyer bot hunt runs", status == 200, (status, h1))
-    _, d1 = buyer.call("GET", "/deals")
-    bot1 = next((b for b in d1["buyer_bots"] if b["id"] == w1["id"]), {})
-    buyer.call("POST", f"/wants/{w1['id']}/hunt")
-    _, d2 = buyer.call("GET", "/deals")
-    bot2 = next((b for b in d2["buyer_bots"] if b["id"] == w1["id"]), {})
+    check("buyer bot hunt starts", status == 200, (status, str(h1)[:200]))
+
+    def settle() -> dict:
+        last, same = None, 0
+        for _ in range(40):
+            _, d = buyer.call("GET", "/deals")
+            bot = next((b for b in d["buyer_bots"] if b["id"] == w1["id"]), {})
+            shape = (len(bot.get("threads", [])), bot.get("status"))
+            same = same + 1 if shape == last and bot.get("status") != "hunting" else 0
+            last = shape
+            if same >= 2:
+                return bot
+            time.sleep(3)
+        return bot
+
+    bot1 = settle()
     check("buyer bot found several listings", len(bot1.get("matches", [])) >= 1, len(bot1.get("matches", [])))
+    check("buyer bot opened conversations", len(bot1.get("threads", [])) >= 1, len(bot1.get("threads", [])))
+    buyer.call("POST", f"/wants/{w1['id']}/hunt")
+    bot2 = settle()
     check("second hunt does not duplicate conversations", len(bot2.get("threads", [])) == len(bot1.get("threads", [])), (len(bot1.get("threads", [])), len(bot2.get("threads", []))))
 
     if DEMO:
