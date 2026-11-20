@@ -247,7 +247,14 @@ export interface ThreadSummary {
 }
 
 export interface DealsResponse {
-  buyer_bots: { id: string; label: string; threads: ThreadSummary[] }[];
+  buyer_bots: {
+    id: string;
+    label: string;
+    threads: ThreadSummary[];
+    status?: string;
+    matches?: { listing_id: string; title: string; price: number; source_name: string }[];
+  }[];
   direct: ThreadSummary[];
   listings: { listing_id: string; title: string; threads: ThreadSummary[] }[];
+  completed?: { id: string; listing_id: string; title: string; price: number; role: "buyer" | "seller"; thread_id: string | null; at: string }[];
 }

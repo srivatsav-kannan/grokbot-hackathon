@@ -113,6 +113,46 @@ export function DealsPage() {
     <div className={`wrap deals-layout${threadId ? " has-thread" : ""}`}>
       <aside className="deals-list" aria-label="Conversations">
         <h1>Deals</h1>
+        {deals && deals.buyer_bots.length > 0 ? (
+          <section className="deal-records">
+            <h2>Buyer bots</h2>
+            <ul>
+              {deals.buyer_bots.map((bot) => (
+                <li key={bot.id}>
+                  <strong>{bot.label}</strong>
+                  <span>
+                    {bot.status === "negotiating" ? "Negotiating" : bot.status === "done" ? "Done" : "Watching"} ·{" "}
+                    {bot.matches?.length ?? 0} matches · {bot.threads.length} conversations
+                  </span>
+                  {(bot.matches ?? []).slice(0, 4).map((match) => (
+                    <Link key={match.listing_id} to={`/listings/${match.listing_id}`}>
+                      {match.title} · {formatUsd(match.price)} · {match.source_name}
+                    </Link>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {deals?.completed && deals.completed.length > 0 ? (
+          <section className="deal-records">
+            <h2>Completed deals</h2>
+            <ul>
+              {deals.completed.map((done) => (
+                <li key={done.id}>
+                  <Link to={done.thread_id ? `/deals/${done.thread_id}` : `/listings/${done.listing_id}`}>
+                    <strong>{done.title}</strong>
+                    <span>
+                      {done.role === "buyer" ? "Bought" : "Sold"} for {formatUsd(done.price)} ·{" "}
+                      {new Date(done.at).toLocaleString()}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        <h2 className="deal-records-head">Conversations</h2>
         {rows.length === 0 ? <p className="agent-note">No conversations yet.</p> : null}
         <ul>
           {rows.map((row) => (
@@ -183,11 +223,28 @@ export function DealsPage() {
                 <button type="submit" disabled={sending}>
                   Send
                 </button>
-                {thread.role === "seller" ? (
-                  <button type="button" disabled={sending} onClick={(event) => void send(event, "accept")}>
-                    Accept
-                  </button>
-                ) : null}
+                {(() => {
+                  const last = [...thread.messages].reverse().find((m) => m.amount != null);
+                  const theirs =
+                    last && !last.author.startsWith(thread.role === "buyer" ? "buyer" : "seller");
+                  return theirs && last ? (
+                    <button
+                      type="button"
+                      disabled={sending}
+                      onClick={(event) => {
+                        setAmount(String(last.amount));
+                        void postThreadMessage(thread.id, { kind: "accept", amount: last.amount ?? undefined, text: "Deal." })
+                          .then((next) => {
+                            setThread(next);
+                            event.preventDefault();
+                          })
+                          .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Accept failed."));
+                      }}
+                    >
+                      Accept {formatUsd(last.amount ?? 0)}
+                    </button>
+                  ) : null;
+                })()}
               </form>
             )}
           </>

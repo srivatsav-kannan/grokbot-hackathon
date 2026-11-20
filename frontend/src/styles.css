@@ -1468,3 +1468,10 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.deal-records { margin: 0 0 1rem; }
+.deal-records h2, .deal-records-head { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted, #6b6b6b); margin: 1rem 0 0.4rem; }
+.deal-records ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
+.deal-records li { display: grid; gap: 0.15rem; padding: 0.6rem 0.7rem; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; }
+.deal-records li a, .deal-records li span { font-size: 0.85rem; overflow-wrap: anywhere; }
+.deal-records li > a { color: inherit; display: grid; gap: 0.15rem; text-decoration: none; }
