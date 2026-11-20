@@ -10,6 +10,7 @@ from urllib.parse import urlencode, urlparse
 
 from backend.app.sources.errors import PageLimit, ScoutStopped
 from backend.app.sources.fetch import PageFetcher
+from backend.app.sources.places import craigslist_place_ok
 from backend.app.sources.listing import (
     MAX_LISTINGS_PER_CATEGORY,
     ScoutedListing,
@@ -146,7 +147,7 @@ def listings_from_page(body: str, category: str | None, posted_at: str) -> list[
     found: list[ScoutedListing] = []
     for item in parse_search_page(body)[:MAX_LISTINGS_PER_CATEGORY]:
         resolved = resolve_category(category, item.title)
-        if resolved is None:
+        if resolved is None or not craigslist_place_ok(item.neighborhood):
             continue
         listing = build_listing(
             source=NAME,

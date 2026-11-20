@@ -115,6 +115,27 @@ def test_offerup_and_mercari_parsers_see_locations():
     assert mercari[0]["posted_at"] == "2026-11-01T15:00:00Z"
 
 
+def test_craigslist_drops_a_named_place_outside_the_bay():
+    from backend.app.sources.craigslist import listings_from_page
+
+    body = """
+    <li class="cl-static-search-result">
+    <a href="https://www.craigslist.org/view/d/tandem/OutSideBayId0000000001">
+    <div class="title">Tandem</div>
+    <div class="price">$500</div>
+    <div class="location">Corona, California, United States</div>
+    </a></li>
+    <li class="cl-static-search-result">
+    <a href="https://www.craigslist.org/view/d/tandem/InSideBayId00000000002">
+    <div class="title">Tandem</div>
+    <div class="price">$400</div>
+    <div class="location">berkeley</div>
+    </a></li>
+    """
+    found = listings_from_page(body, "bikes", "2026-11-19T00:00:00Z")
+    assert [item.neighborhood for item in found] == ["Berkeley"]
+
+
 def test_place_filter():
     assert location_is_bay("Mission, San Francisco, CA")
     assert location_is_bay("Oakland, CA")

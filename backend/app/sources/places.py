@@ -143,6 +143,25 @@ def location_is_bay(text: str) -> bool:
     return _BAY_RE.search(text) is not None
 
 
+_NAMED_OTHER_PLACE_RE = re.compile(r",\s*(california|ca|united states)\b", re.I)
+
+
+def craigslist_place_ok(text: str) -> bool:
+    """SF Bay search labels stay. A named place outside the Bay does not.
+
+    Neighborhood-only labels such as "mission district" have no state, so they
+    stay. "Corona, California" does not match a Bay city and is dropped.
+    """
+
+    if location_is_bay(text):
+        return True
+    if location_is_outside(text):
+        return False
+    if _NAMED_OTHER_PLACE_RE.search(text):
+        return False
+    return True
+
+
 def location_is_outside(text: str) -> bool:
     """True when the text clearly names a place outside the SF Bay Area."""
 
