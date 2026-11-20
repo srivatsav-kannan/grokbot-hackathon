@@ -27,7 +27,7 @@ CATEGORIES: tuple[Category, ...] = ("bikes", "computers", "furniture")
 class Comp(BaseModel):
     title: str
     price: int
-    url: str
+    url: str | None = None
 
 
 class AppraisalSummary(BaseModel):

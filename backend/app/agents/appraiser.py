@@ -38,8 +38,8 @@ def stub_appraise(listing: ListingRecord) -> Appraisal:
         low=low,
         high=high,
         comps=[
-            Comp(title=f"Similar {label} nearby", price=low, url="https://example.com/comps/low"),
-            Comp(title=f"Recent {label} sale", price=high, url="https://example.com/comps/high"),
+            Comp(title=f"Similar {label} nearby", price=low),
+            Comp(title=f"Recent {label} sale", price=high),
         ],
         verdict=verdict_for(listing.price, low, high),  # type: ignore[arg-type]
     )
@@ -59,7 +59,8 @@ def _appraisal_prompt(listing: ListingRecord) -> str:
         "You price used bikes, computers, and furniture in the SF Bay Area. "
         "Reply with one JSON object only, no markdown, using integer US dollars: "
         '{"estimated_value": 340, "low": 280, "high": 420, '
-        '"comps": [{"title": "Similar item nearby", "price": 300, "url": "https://example.com/comp"}]}. '
+        '"comps": [{"title": "Similar item nearby", "price": 300, "url": null}]}. '
+        "Only give a comp url if you are sure the page exists, otherwise null. "
         "low and high are the comparable range. estimated_value must sit inside that range. "
         "Do not decide whether the asking price is a good deal. "
         "Do not include a budget, a buyer maximum, or a seller minimum.\n"
@@ -100,13 +101,15 @@ def _comps(raw: object, low: int, high: int) -> list[Comp]:
             if not isinstance(title, str) or not title.strip() or price is None:
                 continue
             if not isinstance(url, str) or not url.strip():
-                url = "https://example.com/comps/item"
-            comps.append(Comp(title=title.strip()[:120], price=price, url=url.strip()[:300]))
+                url = None
+            elif "example.com" in url:
+                url = None
+            comps.append(Comp(title=title.strip()[:120], price=price, url=url.strip()[:300] if url else None))
     if comps:
         return comps
     return [
-        Comp(title="Lower comparable", price=low, url="https://example.com/comps/low"),
-        Comp(title="Higher comparable", price=high, url="https://example.com/comps/high"),
+        Comp(title="Lower comparable", price=low),
+        Comp(title="Higher comparable", price=high),
     ]
 
 

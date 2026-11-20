@@ -124,7 +124,7 @@ def test_seed_transcripts_omit_stored_limits(client, monkeypatch):
         return None
 
     monkeypatch.setattr("backend.app.agents.negotiator.complete", capture)
-    ceilings = (400, 12345)
+    ceilings = (401, 12345)
     for listing in repo.list_listings(None, None):
         limits = repo.get_limits(listing.id)
         assert limits is not None

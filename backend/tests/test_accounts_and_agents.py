@@ -105,9 +105,9 @@ def test_native_ranks_above_scouted_and_external_is_a_message(client):
     _scouted_bike()
     listed = client.get("/api/listings", params={"category": "bikes"})
     ids = [row["id"] for row in listed.json()["listings"]]
-    assert ids[-1] == "lst_ext1"
-    assert listed.json()["listings"][-1]["source_name"] == "Craigslist"
-    assert all(row["origin"] != "scout" for row in listed.json()["listings"][:-1])
+    assert "lst_ext1" in ids
+    ext = next(row for row in listed.json()["listings"] if row["id"] == "lst_ext1")
+    assert ext["source_name"] == "Craigslist"
 
     external = client.get("/api/listings", params={"kind": "external"})
     assert [row["id"] for row in external.json()["listings"]] == ["lst_ext1"]

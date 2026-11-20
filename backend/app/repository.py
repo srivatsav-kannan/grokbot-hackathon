@@ -79,16 +79,9 @@ def list_listings(category: str | None, q: str | None, kind: str | None = None) 
         query += " AND origin = 'scout'"
     elif kind == "sample":
         query += " AND origin = 'seed'"
-    else:
-        # Demo rows stay in the database for tests. The public feed drops them
-        # once a real listing (native or scouted) is stored.
-        query += (
-            " AND (origin != 'seed' OR NOT EXISTS ("
-            "SELECT 1 FROM listings AS live WHERE live.origin != 'seed'))"
-        )
     query += (
-        " ORDER BY CASE origin WHEN 'lister' THEN 0 WHEN 'seed' THEN 1 ELSE 2 END,"
-        " posted_at DESC"
+        " ORDER BY CASE WHEN status = 'sold' THEN 1 ELSE 0 END,"
+        " CASE origin WHEN 'lister' THEN 0 ELSE 1 END, posted_at DESC"
     )
     with connect() as conn:
         rows = conn.execute(query, params).fetchall()

@@ -18,7 +18,7 @@ export interface AppraisalSummary {
 export interface Comp {
   title: string;
   price: number;
-  url: string;
+  url: string | null;
 }
 
 export interface Appraisal extends AppraisalSummary {

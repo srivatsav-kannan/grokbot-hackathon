@@ -407,7 +407,6 @@ def init_db() -> None:
         _add_column(conn, "negotiations", "user_id", "TEXT")
         _add_column(conn, "negotiations", "accepted", "INTEGER NOT NULL DEFAULT 0")
         count = conn.execute("SELECT COUNT(*) AS n FROM listings").fetchone()["n"]
-    if count == 0:
-        from backend.app.seed import load_seed
+    from backend.app.seed import load_seed
 
-        load_seed()
+    load_seed()

@@ -78,7 +78,7 @@ def test_road_bike_in_san_francisco_ranks_first(client):
     assert any("road" in word for word in criteria.keywords)
     matches = match_listings(criteria)
     assert matches
-    assert matches[0].listing_id == "lst_02"
+    assert matches[0].listing_id == "lst_06"
     assert matches == sorted(matches, key=lambda item: (-item.score, item.listing_id))
     assert all(0 < item.score <= 1 for item in matches)
 
@@ -89,7 +89,7 @@ def test_desk_query_prefers_the_mission_desk(client):
     assert criteria.area == "Mission"
     assert "desk" in criteria.keywords
     matches = match_listings(criteria)
-    assert matches[0].listing_id == "lst_09"
+    assert matches[0].listing_id == "lst_16"
 
 
 def test_model_notes_replace_reasons_without_reordering(client, monkeypatch):
@@ -97,11 +97,11 @@ def test_model_notes_replace_reasons_without_reordering(client, monkeypatch):
         assert "11111" not in prompt
         assert "buyer_max" not in prompt
         return json.dumps(
-            {"notes": [{"listing_id": "lst_02", "reason": "Road bike in San Francisco."}]}
+            {"notes": [{"listing_id": "lst_06", "reason": "Road bike in San Francisco."}]}
         )
 
     monkeypatch.setattr("backend.app.agents.buyer.complete", capture)
     criteria = WantCriteria(category="bikes", area="San Francisco", keywords=["road"])
     matches = match_listings(criteria)
-    assert matches[0].listing_id == "lst_02"
+    assert matches[0].listing_id == "lst_06"
     assert matches[0].reason == "Road bike in San Francisco."
