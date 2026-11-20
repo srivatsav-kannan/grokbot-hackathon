@@ -117,6 +117,39 @@ def load_sellers() -> None:
                 )
 
 
+def reset_demo_if_used(min_age_s: int = 300) -> bool:
+    """Put the demo seller's waiting offer back a few minutes after a judge closes it."""
+
+    from backend.app import repository as repo
+
+    found = repo.get_user_by_email(DEMO_EMAIL)
+    if found is None:
+        return False
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=min_age_s)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with connect() as conn:
+        threads = [
+            str(r["id"])
+            for r in conn.execute("SELECT id FROM threads WHERE listing_id = ?", (_DEMO_LISTING,)).fetchall()
+        ]
+        stale = conn.execute(
+            "SELECT 1 FROM threads WHERE listing_id = ? AND status != 'open' AND updated_at <= ?",
+            (_DEMO_LISTING, cutoff),
+        ).fetchone()
+        open_left = conn.execute(
+            "SELECT 1 FROM threads WHERE listing_id = ? AND status = 'open'", (_DEMO_LISTING,)
+        ).fetchone()
+        if stale is None or open_left is not None:
+            return False
+        for thread_id in threads:
+            conn.execute("DELETE FROM thread_messages WHERE thread_id = ?", (thread_id,))
+            conn.execute("DELETE FROM thread_limits WHERE thread_id = ?", (thread_id,))
+            conn.execute("DELETE FROM threads WHERE id = ?", (thread_id,))
+        conn.execute("DELETE FROM completions WHERE listing_id = ?", (_DEMO_LISTING,))
+        conn.execute("UPDATE listings SET status = 'active' WHERE id = ?", (_DEMO_LISTING,))
+    load_demo()
+    return True
+
+
 def load_demo() -> None:
     """Shared judge account. It owns one sample listing with an offer waiting, so both sides can be tried."""
 

@@ -41,6 +41,11 @@ async def background_loop(stop: asyncio.Event) -> None:
 
 
 def _tick() -> None:
+    from backend.app.seed import reset_demo_if_used
     from backend.app.services import run_background_tick
 
+    try:
+        reset_demo_if_used()
+    except Exception:
+        log.exception("demo reset failed")
     run_background_tick()

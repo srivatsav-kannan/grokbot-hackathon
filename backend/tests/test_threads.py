@@ -210,3 +210,16 @@ def test_scam_rules_catch_common_patterns():
     assert scam_reason("text me at whatsapp")
     assert scam_reason("Can I see it Saturday morning in Palo Alto?") is None
     assert scam_reason("Would you take 450 cash at pickup?") is None
+
+
+def test_demo_seller_offer_comes_back_after_use(client):
+    from backend.app.seed import reset_demo_if_used
+
+    client.post("/api/auth/login", json={"email": "demo@fairlot.app", "password": "fairlot-demo"})
+    waiting = client.get("/api/deals").json()["listings"][0]["threads"][0]
+    client.post(f"/api/threads/{waiting['id']}/messages", json={"kind": "accept", "amount": 700, "text": "Deal."})
+    assert client.get("/api/deals").json()["completed"]
+    assert reset_demo_if_used(min_age_s=0) is True
+    again = client.get("/api/deals").json()
+    assert again["completed"] == []
+    assert again["listings"][0]["threads"][0]["summary"] == "Waiting on you"
