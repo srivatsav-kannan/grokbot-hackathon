@@ -232,7 +232,7 @@ export interface ThreadView {
   want_label: string | null;
   buyer_mode: "manual" | "bot";
   seller_mode: "manual" | "bot";
-  status: "open" | "deal" | "declined";
+  status: "open" | "agreed" | "deal" | "declined";
   summary: string;
   messages: ThreadMessage[];
   my_limit: number | null;

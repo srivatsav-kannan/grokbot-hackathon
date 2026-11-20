@@ -271,10 +271,14 @@ export function getThread(id: string, signal?: AbortSignal): Promise<ThreadView>
 export function postThreadMessage(
   id: string,
   body: { text?: string; amount?: number; kind: "text" | "offer" | "counter" | "accept" | "decline" },
+  idempotencyKey?: string,
 ): Promise<ThreadView> {
+  const headers: HeadersInit = {};
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   return request<ThreadView>(`/api/threads/${encodeURIComponent(id)}/messages`, {
     method: "POST",
     body: JSON.stringify(body),
+    headers,
   });
 }
 

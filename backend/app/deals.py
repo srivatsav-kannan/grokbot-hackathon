@@ -75,8 +75,13 @@ def _is_sold(listing_id: str) -> bool:
 
 def _complete(thread_id: str, listing_id: str, price: int) -> None:
     if _is_sold(listing_id):
-        _set_status(thread_id, "deal")
-        return
+        with connect() as conn:
+            row = conn.execute("SELECT thread_id FROM completions WHERE listing_id = ?", (listing_id,)).fetchone()
+        if row is not None and row["thread_id"] == thread_id:
+            _set_status(thread_id, "deal")
+            return
+        _set_status(thread_id, "declined")
+        raise APIError(400, "bad_request", "This listing already sold to someone else.")
     buyer = _buyer_id(thread_id)
     seller = get_listing_owner(listing_id)
     if not buyer:
@@ -162,7 +167,8 @@ def record_bot_thread(
         author = "buyer_bot" if message.from_ == "buyer" else "seller_bot"
         rows.append((author, message.kind, message.amount, message.text, message.at))
     _append(thread_id, rows)
-    status = "deal" if outcome == "deal" else "declined"
+    # A bot agreement waits for the buyer to approve it. Only approval records a sale.
+    status = "agreed" if outcome == "deal" else "declined"
     _set_status(thread_id, status)
     return thread_id
 
@@ -557,7 +563,8 @@ def _reply_if_bot(thread_id: str, listing: ListingRecord, ceiling: int, floor: i
         kind, reply_amount, text = _buyer_line(listing, amount, ceiling, floor)
         _append(thread_id, [("buyer_bot", kind, reply_amount, text, _now())])
         if kind == "accept":
-            _set_status(thread_id, "deal")
+            _set_status(thread_id, "agreed")
+            _notify(_buyer_id(thread_id), "deal", f"Your bot agreed on {listing.title}. Approve to buy.", f"/deals/{thread_id}")
 
 
 def _buyer_id(thread_id: str) -> str | None:
@@ -634,7 +641,11 @@ def _view(thread_id: str, user_id: str) -> ThreadView:
 
 def _summary(status: str, messages: list[ThreadMessagePublic], role: str, my_mode: str) -> str:
     if status == "deal":
-        return "Deal reached"
+        return "Sold" if role == "seller" else "Bought"
+    if status == "agreed":
+        price = next((m.amount for m in reversed(messages) if m.amount is not None), None)
+        at = f" at ${price}" if price is not None else ""
+        return f"Bot agreed{at}. Approve to buy" if role == "buyer" else f"Buyer's bot agreed{at}. Waiting on the buyer"
     if status == "declined":
         return "Passed"
     if not messages:

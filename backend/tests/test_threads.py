@@ -119,3 +119,27 @@ def test_buyer_bot_shows_in_deals(client):
     inbox = client.get("/api/deals")
     labels = [bot["label"] for bot in inbox.json()["buyer_bots"]]
     assert "red road bike" in labels
+
+
+def test_bot_agreement_waits_for_buyer_approval_then_records_one_sale(client):
+    sign_in(client, email="approve-buyer@fairlot.test")
+    opened = client.post("/api/threads", json={"listing_id": "lst_02", "intent": "bot", "limit": 260})
+    assert opened.status_code == 201
+    thread = opened.json()
+    assert thread["status"] == "agreed"
+    assert thread["summary"].startswith("Bot agreed")
+    assert client.get("/api/deals").json()["completed"] == []
+
+    price = [m["amount"] for m in thread["messages"] if m["amount"] is not None][-1]
+    for key in ("approve-1", "approve-2"):
+        approved = client.post(
+            f"/api/threads/{thread['id']}/messages",
+            json={"kind": "accept", "amount": price, "text": "Approved."},
+            headers={"Idempotency-Key": key},
+        )
+        assert approved.status_code == 200
+        assert approved.json()["status"] == "deal"
+    completed = client.get("/api/deals").json()["completed"]
+    assert len(completed) == 1
+    assert completed[0]["price"] == price
+    assert client.get("/api/listings/lst_02").json()["sold_for"] == price

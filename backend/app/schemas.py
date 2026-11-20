@@ -336,7 +336,7 @@ class ThreadView(BaseModel):
     want_label: str | None = None
     buyer_mode: Literal["manual", "bot"]
     seller_mode: Literal["manual", "bot"]
-    status: Literal["open", "deal", "declined"]
+    status: Literal["open", "agreed", "deal", "declined"]
     summary: str
     messages: list[ThreadMessagePublic]
     my_limit: int | None = None

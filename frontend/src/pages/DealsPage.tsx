@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, getDeals, getThread, postThreadMessage } from "../api/client";
 import { ErrorNotice } from "../components/States";
@@ -45,6 +45,7 @@ export function DealsPage() {
   const [draft, setDraft] = useState("");
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
+  const sendKey = useRef<string | null>(null);
   useTitle("Deals");
 
   useEffect(() => {
@@ -74,15 +75,21 @@ export function DealsPage() {
       return;
     }
     const controller = new AbortController();
-    getThread(threadId, controller.signal)
-      .then((payload) => {
-        if (!controller.signal.aborted) setThread(payload);
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
-        setError(err instanceof ApiError ? err.message : "That conversation didn't load.");
-      });
-    return () => controller.abort();
+    const load = () =>
+      getThread(threadId, controller.signal)
+        .then((payload) => {
+          if (!controller.signal.aborted) setThread(payload);
+        })
+        .catch((err: unknown) => {
+          if (controller.signal.aborted) return;
+          setError(err instanceof ApiError ? err.message : "That conversation didn't load.");
+        });
+    void load();
+    const timer = window.setInterval(() => void load(), 5000);
+    return () => {
+      window.clearInterval(timer);
+      controller.abort();
+    };
   }, [user, threadId]);
 
   async function send(event: FormEvent, kind: "text" | "offer" | "accept") {
@@ -92,11 +99,17 @@ export function DealsPage() {
     setSending(true);
     setError("");
     try {
-      const next = await postThreadMessage(thread.id, {
-        kind: kind === "text" && dollars ? "offer" : kind,
-        text: draft || (kind === "accept" ? "I accept." : ""),
-        amount: dollars,
-      });
+      sendKey.current ??= crypto.randomUUID();
+      const next = await postThreadMessage(
+        thread.id,
+        {
+          kind: kind === "text" && dollars ? "offer" : kind,
+          text: draft || (kind === "accept" ? "I accept." : ""),
+          amount: dollars,
+        },
+        sendKey.current,
+      );
+      sendKey.current = null;
       setThread(next);
       setDraft("");
       setAmount("");
@@ -197,8 +210,46 @@ export function DealsPage() {
                 );
               })}
             </ol>
-            {thread.status === "deal" ? (
-              <p className="sold-line">This listing is sold.</p>
+            {thread.status === "agreed" ? (
+              (() => {
+                const agreed = [...thread.messages].reverse().find((m) => m.amount != null)?.amount ?? null;
+                return thread.role === "buyer" ? (
+                  <div className="approve-bar">
+                    <p>Your bot agreed{agreed != null ? ` at ${formatUsd(agreed)}` : ""}. Nothing is final until you approve.</p>
+                    <button
+                      type="button"
+                      className="button-primary"
+                      disabled={sending}
+                      onClick={() => {
+                        setSending(true);
+                        setError("");
+                        postThreadMessage(
+                          thread.id,
+                          { kind: "accept", amount: agreed ?? undefined, text: "Approved." },
+                          `approve-${thread.id}`,
+                        )
+                          .then((next) => setThread(next))
+                          .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Approval failed."))
+                          .finally(() => setSending(false));
+                      }}
+                    >
+                      Approve deal{agreed != null ? ` at ${formatUsd(agreed)}` : ""}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="sold-line">The buyer's bot agreed. Waiting for the buyer to approve.</p>
+                );
+              })()
+            ) : thread.status === "deal" ? (
+              <p className="sold-line">
+                {thread.role === "buyer" ? "You bought this" : "You sold this"}
+                {(() => {
+                  const final = [...thread.messages].reverse().find((m) => m.amount != null)?.amount;
+                  return final != null ? ` for ${formatUsd(final)}.` : ".";
+                })()}
+              </p>
+            ) : thread.status === "declined" ? (
+              <p className="sold-line">This conversation is closed.</p>
             ) : (
               <form className="composer" onSubmit={(event) => void send(event, "text")}>
                 <label>
@@ -233,7 +284,11 @@ export function DealsPage() {
                       disabled={sending}
                       onClick={(event) => {
                         setAmount(String(last.amount));
-                        void postThreadMessage(thread.id, { kind: "accept", amount: last.amount ?? undefined, text: "Deal." })
+                        void postThreadMessage(
+                          thread.id,
+                          { kind: "accept", amount: last.amount ?? undefined, text: "Deal." },
+                          `accept-${thread.id}-${thread.messages.length}`,
+                        )
                           .then((next) => {
                             setThread(next);
                             event.preventDefault();

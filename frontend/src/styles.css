@@ -1475,3 +1475,6 @@ button:disabled {
 .deal-records li { display: grid; gap: 0.15rem; padding: 0.6rem 0.7rem; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; }
 .deal-records li a, .deal-records li span { font-size: 0.85rem; overflow-wrap: anywhere; }
 .deal-records li > a { color: inherit; display: grid; gap: 0.15rem; text-decoration: none; }
+
+.approve-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.9rem 1rem; border-radius: 12px; background: rgba(15, 110, 86, 0.08); border: 1px solid rgba(15, 110, 86, 0.25); margin-top: 0.75rem; }
+.approve-bar p { margin: 0; }
