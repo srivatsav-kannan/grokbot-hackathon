@@ -52,6 +52,7 @@ export interface ListingCard {
   source_name: string;
   appraisal: AppraisalSummary;
   inspection: InspectionSummary;
+  sold_for?: number | null;
 }
 
 export interface Outreach {

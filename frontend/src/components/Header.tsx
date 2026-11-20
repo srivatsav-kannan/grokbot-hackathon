@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, NavLink, useNavigate, useSearchParams } from "react-router-dom";
-import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "../auth";
-import { boardHref, CATEGORIES, CATEGORY_LABEL, parseCategory, parseSort } from "../lib/format";
+import { boardHref, parseCategory, parseSort } from "../lib/format";
 
 export function Header() {
   const [params] = useSearchParams();
@@ -12,6 +11,7 @@ export function Header() {
   const category = parseCategory(params.get("category"));
   const sort = parseSort(params.get("sort"));
   const [draft, setDraft] = useState(q);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout } = useAuth();
 
   useEffect(() => {
@@ -34,9 +34,7 @@ export function Header() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const nextQuery = String(data.get("q") ?? "");
-    const nextCategory = parseCategory(String(data.get("category") ?? ""));
-    const nextSort = parseSort(String(data.get("sort") ?? ""));
-    navigate(boardHref({ q: nextQuery, category: nextCategory, sort: nextSort }));
+    navigate(boardHref({ q: nextQuery, category, sort }));
   }
 
   return (
@@ -45,47 +43,50 @@ export function Header() {
         <Link className="wordmark" to="/" aria-label="Fairlot, home">
           Fairlot
         </Link>
-        <nav className="cats" id="category-nav" aria-label="Categories">
-          <Link
-            id="category-all"
-            to={boardHref({ q, sort })}
-            aria-current={category ? undefined : "true"}
-          >
-            All
-          </Link>
-          {CATEGORIES.map((item) => (
-            <Link
-              key={item}
-              id={`category-${item}`}
-              to={boardHref({ q, category: item, sort })}
-              aria-current={category === item ? "true" : undefined}
-            >
-              {CATEGORY_LABEL[item]}
-            </Link>
-          ))}
+        <nav className="site-nav" aria-label="Main">
+          <NavLink to="/" end>
+            Browse
+          </NavLink>
+          <NavLink to="/deals">Deals</NavLink>
         </nav>
         <div className="mast-actions">
-          <NotificationBell />
-          {user ? (
-            <Link to="/bots">My bots</Link>
-          ) : (
-            <Link to="/login">Log in</Link>
-          )}
-          {user ? (
-            <button type="button" className="text-button" onClick={() => void logout()}>
-              Log out
-            </button>
-          ) : null}
           <NavLink id="add-listing" className="add-listing" to="/sell">
             Sell
           </NavLink>
+          {user ? (
+            <div className="account">
+              <button
+                type="button"
+                className="account-button"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                {user.email}
+              </button>
+              {menuOpen ? (
+                <div className="account-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void logout();
+                    }}
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <Link to="/login">Log in</Link>
+          )}
         </div>
       </div>
       <div className="wrap">
         <form id="lot-search" className="lot-search" role="search" method="get" action="/" onSubmit={onSubmit}>
-          <label htmlFor="search-query">
-            What do you want?
-          </label>
+          <label htmlFor="search-query">What do you want?</label>
           <div className="search-row">
             <input
               id="search-query"
@@ -97,8 +98,6 @@ export function Header() {
               onChange={(event) => setDraft(event.target.value)}
               autoComplete="off"
             />
-            {category ? <input type="hidden" name="category" value={category} /> : null}
-            {sort !== "newest" ? <input type="hidden" name="sort" value={sort} /> : null}
             <button type="submit" data-action="search">
               Search
             </button>

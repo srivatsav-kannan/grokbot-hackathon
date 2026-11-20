@@ -141,14 +141,16 @@ export interface WantCreateInput {
   text: string;
   category?: Category | null;
   area?: string | null;
+  maxPrice?: number | null;
 }
 
 export function createWant(input: WantCreateInput): Promise<WantCreated> {
-  const payload: { text: string; category?: Category; area?: string } = {
+  const payload: { text: string; category?: Category; area?: string; max_price?: number } = {
     text: input.text,
   };
   if (input.category) payload.category = input.category;
   if (input.area?.trim()) payload.area = input.area.trim();
+  if (input.maxPrice && input.maxPrice > 0) payload.max_price = input.maxPrice;
   return request<WantCreated>("/api/wants", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -247,14 +249,19 @@ export function getDeals(signal?: AbortSignal): Promise<DealsResponse> {
   return request<DealsResponse>("/api/deals", { signal });
 }
 
-export function openThread(body: {
-  listing_id: string;
-  intent: "offer" | "message" | "bot";
-  text?: string;
-  amount?: number;
-  limit?: number;
-}): Promise<ThreadView> {
-  return request<ThreadView>("/api/threads", { method: "POST", body: JSON.stringify(body) });
+export function openThread(
+  body: {
+    listing_id: string;
+    intent: "offer" | "message" | "bot";
+    text?: string;
+    amount?: number;
+    limit?: number;
+  },
+  idempotencyKey?: string,
+): Promise<ThreadView> {
+  const headers: HeadersInit = {};
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+  return request<ThreadView>("/api/threads", { method: "POST", body: JSON.stringify(body), headers });
 }
 
 export function getThread(id: string, signal?: AbortSignal): Promise<ThreadView> {

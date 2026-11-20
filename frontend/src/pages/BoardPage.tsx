@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, createWant, huntWant, listListings, searchListings } from "../api/client";
 import { useAuth } from "../auth";
 import { ActivityPanel } from "../components/ActivityPanel";
-import { Hero } from "../components/Hero";
 import { ListingGrid } from "../components/ListingGrid";
 import {
   EmptyCategory,
@@ -67,6 +66,7 @@ export function BoardPage() {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [agentState, setAgentState] = useState<"idle" | "working" | "error">("idle");
   const [agentMessage, setAgentMessage] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
 
   useTitle(catalogue ? `Results for ${q}` : "Fairlot");
 
@@ -126,10 +126,15 @@ export function BoardPage() {
     setAgentState("working");
     setAgentMessage("");
     try {
-      const created = await createWant({ text: q, category });
+      const dollars = Number(maxPrice);
+      const created = await createWant({
+        text: q,
+        category,
+        maxPrice: Number.isFinite(dollars) && dollars > 0 ? dollars : null,
+      });
       saveWant(created.id, created.access_token, q);
-      await huntWant(created.id, created.access_token);
-      navigate("/bots");
+      navigate("/deals");
+      void huntWant(created.id, created.access_token).catch(() => undefined);
     } catch (err) {
       setAgentState("error");
       setAgentMessage(err instanceof ApiError ? err.message : "The buyer bot didn't start.");
@@ -144,7 +149,6 @@ export function BoardPage() {
 
   return (
     <>
-      {catalogue ? null : <Hero listings={load.status === "ready" ? listings : []} />}
       <div className="wrap board">
         {catalogue ? (
           <div className="catalogue">
@@ -199,6 +203,25 @@ export function BoardPage() {
                   onRetry={() => setAttempt((value) => value + 1)}
                 />
               ) : null}
+              <form className="bot-card" onSubmit={(event) => { event.preventDefault(); void askAgent(); }}>
+                <h2>Send a buyer bot for “{q}”</h2>
+                <label htmlFor="bot-max">Max price</label>
+                <input
+                  id="bot-max"
+                  inputMode="numeric"
+                  value={maxPrice}
+                  onChange={(event) => setMaxPrice(event.target.value)}
+                  placeholder="400"
+                />
+                <button type="submit" data-action="hunt" disabled={agentState === "working"}>
+                  {agentState === "working" ? "Starting…" : "Start"}
+                </button>
+                {agentState === "error" ? (
+                  <p className="form-error" role="alert">
+                    {agentMessage}
+                  </p>
+                ) : null}
+              </form>
               {load.status === "ready" && listings.length > 0 ? (
                 <ul className="catalogue-rows" id="listing-grid">
                   {listings.slice(0, 6).map((listing) => (
@@ -209,28 +232,26 @@ export function BoardPage() {
               {load.status === "ready" && listings.length === 0 ? (
                 <EmptySearch query={q} category={category ? CATEGORY_LABEL[category] : undefined} />
               ) : null}
-              <div className="agent-row">
-                <button type="button" data-action="hunt" onClick={askAgent} disabled={agentState === "working"}>
-                  {agentState === "working" ? "Sending the buyer bot…" : "Send a buyer bot"}
-                </button>
-                <p className="agent-note">
-                  It keeps searching, watches for price drops, and negotiates with Fairlot sellers.
-                </p>
-                <Link className="back-link" to={boardHref({})}>
-                  Clear the search
-                </Link>
-                {agentState === "error" ? (
-                  <p className="form-error" role="alert">
-                    {agentMessage}
-                  </p>
-                ) : null}
-              </div>
             </div>
             <ActivityPanel />
           </div>
         ) : (
           <>
             <h2 className="section-title">{heading}</h2>
+            <nav className="result-tools" aria-label="Categories">
+              <Link to={boardHref({ sort })} aria-current={category ? undefined : "true"}>
+                All
+              </Link>
+              {CATEGORIES.map((item) => (
+                <Link
+                  key={item}
+                  to={boardHref({ category: item, sort })}
+                  aria-current={category === item ? "true" : undefined}
+                >
+                  {CATEGORY_LABEL[item]}
+                </Link>
+              ))}
+            </nav>
             {load.status === "loading" ? <LoadingGrid label="Loading listings" /> : null}
             {load.status === "error" ? (
               <ErrorNotice

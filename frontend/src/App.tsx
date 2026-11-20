@@ -4,6 +4,7 @@ import { AuthProvider } from "./auth";
 import { Header } from "./components/Header";
 import { scrollToTop, startSmoothScroll, stopSmoothScroll, useReducedMotion } from "./lib/scroll";
 import { BoardPage } from "./pages/BoardPage";
+import { DealsPage } from "./pages/DealsPage";
 import { BotsPage } from "./pages/BotsPage";
 import { ListingPage } from "./pages/ListingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -51,6 +52,8 @@ export function App() {
           <Route path="/bots" element={<BotsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/deals" element={<DealsPage />} />
+          <Route path="/deals/:threadId" element={<DealsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

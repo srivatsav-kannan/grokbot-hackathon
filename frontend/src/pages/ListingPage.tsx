@@ -1,13 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  ApiError,
-  createWant,
-  getListing,
-  mediaUrl,
-  startNegotiation,
-  targetWant,
-} from "../api/client";
+import { ApiError, getListing, mediaUrl, openThread } from "../api/client";
 import { Marks } from "../components/Marks";
 import { PhotoFrame } from "../components/PhotoFrame";
 import { Price } from "../components/Price";
@@ -19,7 +12,6 @@ import {
   loginPath,
   verdictReason,
 } from "../lib/format";
-import { activeWant, saveWant } from "../lib/session";
 import { useTitle } from "../lib/title";
 import type { ListingDetail } from "../types";
 
@@ -35,8 +27,7 @@ export function ListingPage() {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [offerState, setOfferState] = useState<"idle" | "working" | "error">("idle");
   const [offerMessage, setOfferMessage] = useState("");
-  const [agentState, setAgentState] = useState<"idle" | "working" | "error">("idle");
-  const [agentMessage, setAgentMessage] = useState("");
+  const offerKey = useRef<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -63,8 +54,16 @@ export function ListingPage() {
     setOfferState("working");
     setOfferMessage("");
     try {
-      const negotiation = await startNegotiation(listing.id);
-      navigate(`/negotiations/${negotiation.id}`);
+      offerKey.current ??= crypto.randomUUID();
+      const thread = await openThread(
+        {
+          listing_id: listing.id,
+          intent: "offer",
+          text: "I'd like to make an offer.",
+        },
+        offerKey.current,
+      );
+      navigate(`/deals/${thread.id}`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         navigate(loginPath(`/listings/${listing.id}`));
@@ -72,34 +71,6 @@ export function ListingPage() {
       }
       setOfferState("error");
       setOfferMessage(err instanceof ApiError ? err.message : "The offer didn't go through.");
-    }
-  }
-
-  async function onAgent(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!listing) return;
-    setAgentState("working");
-    setAgentMessage("");
-    try {
-      const data = new FormData(event.currentTarget);
-      const session = activeWant();
-      if (session && data.get("use_active") === "yes") {
-        await targetWant(session.id, session.token, listing.id);
-        navigate(`/wants/${session.id}`);
-        return;
-      }
-      const text = String(data.get("text") ?? "").trim();
-      const created = await createWant({ text, category: listing.category });
-      saveWant(created.id, created.access_token, text);
-      await targetWant(created.id, created.access_token, listing.id);
-      navigate("/bots");
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        navigate(loginPath(`/listings/${listing.id}`));
-        return;
-      }
-      setAgentState("error");
-      setAgentMessage(err instanceof ApiError ? err.message : "The buyer bot didn't start.");
     }
   }
 
@@ -136,7 +107,6 @@ export function ListingPage() {
   }
 
   if (!listing) return null;
-  const current = activeWant();
 
   return (
     <article
@@ -185,18 +155,25 @@ export function ListingPage() {
             sourceName={listing.source_name}
           />
           <p className="description">{listing.description}</p>
+          {listing.sold_for != null ? <p className="sold-line">Sold for {formatUsd(listing.sold_for)}</p> : null}
           {listing.source_url ? (
             <p>
               <a className="back-link" href={listing.source_url} rel="noreferrer">
-                View the original page
+                View on Craigslist
               </a>
             </p>
           ) : null}
+          {listing.outreach ? (
+            <div className="advice">
+              <p>Suggested offer {formatUsd(listing.outreach.amount)}</p>
+              <pre>{listing.outreach.message}</pre>
+            </div>
+          ) : null}
 
           <div className="actions">
-            {listing.origin === "scout" ? null : (
+            {listing.origin === "scout" || listing.sold_for != null ? null : (
               <>
-                <form method="post" action="/api/negotiations" onSubmit={onOffer}>
+                <form method="post" action="/api/threads" onSubmit={onOffer}>
                   <input type="hidden" name="listing_id" value={listing.id} />
                   <button
                     type="submit"
@@ -214,37 +191,6 @@ export function ListingPage() {
                 ) : null}
               </>
             )}
-
-            <form className="agent-form" onSubmit={onAgent}>
-              {current ? (
-                <>
-                  <p>
-                    Point the buyer agent from “{current.text || "your latest search"}” at this
-                    listing.
-                  </p>
-                  <input type="hidden" name="use_active" value="yes" />
-                </>
-              ) : (
-                <>
-                  <label htmlFor="agent-want">What should the buyer agent ask for?</label>
-                  <input
-                    id="agent-want"
-                    name="text"
-                    type="text"
-                    required
-                    defaultValue={listing.title}
-                  />
-                </>
-              )}
-              <button type="submit" data-action="send-agent" disabled={agentState === "working"}>
-                {agentState === "working" ? "Sending the buyer agent…" : "Send the buyer agent here"}
-              </button>
-              {agentState === "error" ? (
-                <p className="form-error" role="alert">
-                  {agentMessage}
-                </p>
-              ) : null}
-            </form>
           </div>
         </div>
       </div>
