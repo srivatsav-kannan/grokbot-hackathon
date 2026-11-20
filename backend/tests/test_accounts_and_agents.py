@@ -33,6 +33,37 @@ def _scouted_bike() -> None:
     )
 
 
+def test_missing_account_and_stale_session_say_so(client):
+    missing = client.post(
+        "/api/auth/login",
+        json={"email": "gone@fairlot.test", "password": "fairlot-demo-pass"},
+    )
+    assert missing.status_code == 401
+    assert missing.json()["error"]["message"] == "Account not found, please sign up again."
+
+    created = sign_in(client)
+    stale = client.get(
+        "/api/auth/me",
+        headers={"Authorization": "Bearer ses_wiped-after-deploy"},
+    )
+    assert stale.status_code == 401
+    assert stale.json()["error"]["message"] == "Account not found, please sign up again."
+    assert created["email"]
+
+
+def test_https_cookie_is_secure_and_lax(client):
+    response = client.post(
+        "/api/auth/signup",
+        json={"email": "secure@fairlot.test", "password": "fairlot-demo-pass"},
+        headers={"x-forwarded-proto": "https"},
+    )
+    assert response.status_code == 201
+    cookie = response.headers["set-cookie"].lower()
+    assert "samesite=lax" in cookie
+    assert "secure" in cookie
+    assert "httponly" in cookie
+
+
 def test_signup_login_logout_and_bearer(client):
     created = sign_in(client)
     me = client.get("/api/auth/me")

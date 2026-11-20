@@ -14,7 +14,8 @@ PNG = (
 def test_health(client):
     health = client.get("/api/health")
     assert health.status_code == 200
-    assert health.json() == {"ok": True}
+    assert health.json()["ok"] is True
+    assert health.json()["database"] in {"sqlite", "postgres"}
 
 
 def test_feed_detail_and_badges(client):

@@ -189,6 +189,7 @@ def _card(listing: ListingRecord) -> ListingCard:
             verdict=appraisal.verdict,
         ),
         inspection=InspectionSummary(trust_level=inspection.trust_level),
+        sold_for=_sold_price(listing.id),
     )
 
 
@@ -211,7 +212,30 @@ def _detail(listing: ListingRecord) -> ListingDetail:
         source_url=listing.source_url,
         appraisal=appraisal,
         inspection=inspection,
+        outreach=_outreach(listing),
+        sold_for=_sold_price(listing.id),
     )
+
+
+def _sold_price(listing_id: str) -> int | None:
+    from backend.app.db import connect
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT price FROM completions WHERE listing_id = ?",
+            (listing_id,),
+        ).fetchone()
+    return None if row is None else int(row["price"])
+
+
+def _outreach(listing: ListingRecord):
+    if listing.origin != "scout":
+        return None
+    from backend.app.deals import suggestion_for
+    from backend.app.schemas import Outreach
+
+    amount, message = suggestion_for(listing)
+    return Outreach(amount=amount, message=message)
 
 
 def list_listings(category: str | None, q: str | None, kind: str | None = None) -> ListingListResponse:
@@ -284,12 +308,23 @@ def _negotiate_and_store(
         messages=draft.messages,
     )
     repo.insert_negotiation(item, user_id=user_id)
+    from backend.app.deals import record_bot_thread
+
+    thread_id = record_bot_thread(
+        listing,
+        user_id,
+        want_id,
+        item.messages,
+        item.outcome,
+        buyer_max,
+        seller_min,
+    )
     amount = next((message.amount for message in item.messages if message.amount), None)
     if amount is None:
         _note(f"Buyer agent talked with the seller of {listing.title}")
     else:
         _note(f"Buyer agent offered ${amount} on {listing.title}")
-    _announce_talk(listing, item)
+    _announce_talk(listing, item, thread_id)
     return item
 
 
@@ -412,9 +447,21 @@ def user_from_credentials(authorization: str | None, cookie_token: str | None) -
     return repo.user_for_session(_hash_token(token))
 
 
+def _presented_session(authorization: str | None, cookie_token: str | None) -> str | None:
+    token = cookie_token if cookie_token and cookie_token.startswith("ses_") else None
+    if authorization:
+        scheme, _, rest = authorization.partition(" ")
+        bearer = rest.strip()
+        if scheme.lower() == "bearer" and bearer.startswith("ses_"):
+            token = bearer
+    return token
+
+
 def require_user(authorization: str | None, cookie_token: str | None) -> repo.UserRecord:
     user = user_from_credentials(authorization, cookie_token)
     if user is None:
+        if _presented_session(authorization, cookie_token):
+            raise APIError(401, "unauthorized", "Account not found, please sign up again.")
         raise APIError(401, "unauthorized", "Sign in to continue.")
     return user
 
@@ -433,7 +480,9 @@ def signup(email: str, password: str) -> tuple[UserPublic, str]:
 def login(email: str, password: str) -> tuple[UserPublic, str]:
     cleaned = _normalize_email(email)
     found = repo.get_user_by_email(cleaned)
-    if found is None or not _check_password(password, found[1]):
+    if found is None:
+        raise APIError(401, "unauthorized", "Account not found, please sign up again.")
+    if not _check_password(password, found[1]):
         raise APIError(401, "unauthorized", "Email or password is wrong.")
     user = found[0]
     token = "ses_" + secrets.token_urlsafe(32)
@@ -793,25 +842,16 @@ def _notify(user_id: str | None, kind: str, message: str, href: str | None) -> N
     repo.add_notification(_new_id("ntf_"), user_id, _now_iso(), kind, safe[:240], href)
 
 
-def _announce_talk(listing: ListingRecord, item: Negotiation) -> None:
+def _announce_talk(listing: ListingRecord, item: Negotiation, thread_id: str | None = None) -> None:
     buyer = repo.negotiation_user_id(item.id)
     seller = repo.get_listing_owner(listing.id)
+    href = f"/deals/{thread_id}" if thread_id else "/deals"
     if item.want_id and buyer:
-        _notify(buyer, "match", f"Your buyer bot matched {listing.title}", "/bots")
+        _notify(buyer, "match", f"Your buyer bot matched {listing.title}", href)
         if item.outcome == "deal":
-            _notify(
-                buyer,
-                "deal",
-                f"Your buyer bot reached a deal on {listing.title}",
-                f"/negotiations/{item.id}",
-            )
+            _notify(buyer, "deal", f"Your buyer bot reached a deal on {listing.title}", href)
         elif any(message.kind == "counter" for message in item.messages):
-            _notify(
-                buyer,
-                "counteroffer",
-                f"The seller countered on {listing.title}",
-                f"/negotiations/{item.id}",
-            )
+            _notify(buyer, "counteroffer", f"The seller countered on {listing.title}", href)
     if seller:
         offer = next(
             (message.amount for message in item.messages if message.kind == "offer" and message.amount),
@@ -824,7 +864,7 @@ def _announce_talk(listing: ListingRecord, item: Negotiation) -> None:
                 f"A buyer offered ${offer} on {listing.title}",
                 f"A buyer offered on {listing.title}",
             )
-        _notify(seller, "offer", text, "/bots")
+        _notify(seller, "offer", text, href)
 
 
 def _notify_price_drop(listing: ListingRecord, new_price: int) -> None:

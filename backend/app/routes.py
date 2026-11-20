@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Header, Request, Response, UploadFile
 
-from backend.app import services
+from backend.app import deals, services
 from backend.app.schemas import (
     ActivityResponse,
     AuthRequest,
@@ -23,7 +23,13 @@ from backend.app.schemas import (
     PublishListingRequest,
     ScoutRunRequest,
     ScoutRunResponse,
+    DealsResponse,
+    OpenThreadRequest,
     StartNegotiationRequest,
+    ThreadLimitRequest,
+    ThreadMessageRequest,
+    ThreadModeRequest,
+    ThreadView,
     UserPublic,
     WantCreateRequest,
     WantCreated,
@@ -38,16 +44,36 @@ def _cookie(request: Request) -> str | None:
     return request.cookies.get(services.SESSION_COOKIE)
 
 
+def _cookie_secure(request: Request) -> bool:
+    """Render terminates TLS and forwards https. Local HTTP must stay insecure."""
+
+    forwarded = request.headers.get("x-forwarded-proto", "")
+    if any(part.strip().lower() == "https" for part in forwarded.split(",")):
+        return True
+    host = (request.headers.get("host") or request.url.hostname or "").lower()
+    if host.endswith(".onrender.com"):
+        return True
+    return request.url.scheme == "https"
+
+
 def _set_session(response: Response, request: Request, token: str) -> None:
-    forwarded = request.headers.get("x-forwarded-proto", request.url.scheme)
     response.set_cookie(
         services.SESSION_COOKIE,
         token,
         httponly=True,
         samesite="lax",
-        secure=forwarded == "https",
+        secure=_cookie_secure(request),
         max_age=60 * 60 * 24 * 30,
         path="/",
+    )
+
+
+def _clear_session(response: Response, request: Request) -> None:
+    response.delete_cookie(
+        services.SESSION_COOKIE,
+        path="/",
+        samesite="lax",
+        secure=_cookie_secure(request),
     )
 
 
@@ -56,8 +82,10 @@ def _user(request: Request, authorization: str | None):
 
 
 @router.get("/health")
-def get_health() -> dict[str, bool]:
-    return {"ok": True}
+def get_health() -> dict[str, bool | str]:
+    from backend.app.db import using_postgres
+
+    return {"ok": True, "database": "postgres" if using_postgres() else "sqlite"}
 
 
 @router.post("/auth/signup", response_model=UserPublic, status_code=201)
@@ -81,7 +109,7 @@ def post_logout(
     authorization: Annotated[str | None, Header()] = None,
 ) -> Response:
     services.logout(authorization, _cookie(request))
-    response.delete_cookie(services.SESSION_COOKIE, path="/")
+    _clear_session(response, request)
     response.status_code = 204
     return response
 
@@ -222,3 +250,77 @@ def post_target(
     authorization: Annotated[str | None, Header()] = None,
 ) -> WantView:
     return services.target_want(want_id, authorization, _cookie(request), body.listing_id)
+
+
+@router.get("/deals", response_model=DealsResponse)
+def get_deals(request: Request, authorization: Annotated[str | None, Header()] = None) -> DealsResponse:
+    user = _user(request, authorization)
+    return deals.inbox(user.id)
+
+
+@router.post("/threads", response_model=ThreadView, status_code=201)
+def post_thread(
+    body: OpenThreadRequest,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> ThreadView:
+    user = _user(request, authorization)
+    return deals.open_thread(
+        user.id,
+        body.listing_id,
+        body.intent,
+        body.text,
+        body.amount,
+        body.limit,
+        request.headers.get("idempotency-key"),
+    )
+
+
+@router.get("/threads/{thread_id}", response_model=ThreadView)
+def get_thread(
+    thread_id: str,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> ThreadView:
+    user = _user(request, authorization)
+    return deals.thread_for(user.id, thread_id)
+
+
+@router.post("/threads/{thread_id}/messages", response_model=ThreadView)
+def post_thread_message(
+    thread_id: str,
+    body: ThreadMessageRequest,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> ThreadView:
+    user = _user(request, authorization)
+    return deals.post_message(
+        user.id,
+        thread_id,
+        body.text,
+        body.amount,
+        body.kind,
+        request.headers.get("idempotency-key"),
+    )
+
+
+@router.post("/threads/{thread_id}/mode", response_model=ThreadView)
+def post_thread_mode(
+    thread_id: str,
+    body: ThreadModeRequest,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> ThreadView:
+    user = _user(request, authorization)
+    return deals.set_mode(user.id, thread_id, body.mode)
+
+
+@router.post("/threads/{thread_id}/limit", response_model=ThreadView)
+def post_thread_limit(
+    thread_id: str,
+    body: ThreadLimitRequest,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> ThreadView:
+    user = _user(request, authorization)
+    return deals.set_limit(user.id, thread_id, body.limit)

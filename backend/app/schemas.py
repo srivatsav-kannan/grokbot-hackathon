@@ -66,6 +66,7 @@ class ListingCard(BaseModel):
     source_name: str
     appraisal: AppraisalSummary
     inspection: InspectionSummary
+    sold_for: int | None = None
 
 
 class Outreach(BaseModel):
