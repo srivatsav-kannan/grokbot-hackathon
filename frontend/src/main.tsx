@@ -7,7 +7,6 @@ import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/newsreader/500.css";
 import "@fontsource/newsreader/600.css";
-import "lenis/dist/lenis.css";
 import "./styles.css";
 
 const root = document.getElementById("root");

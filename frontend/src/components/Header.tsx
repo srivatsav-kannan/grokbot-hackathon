@@ -12,19 +12,11 @@ export function Header() {
   const category = parseCategory(params.get("category"));
   const sort = parseSort(params.get("sort"));
   const [draft, setDraft] = useState(q);
-  const [compact, setCompact] = useState(false);
   const { user, logout } = useAuth();
 
   useEffect(() => {
     setDraft(q);
   }, [q]);
-
-  useEffect(() => {
-    const onScroll = () => setCompact(window.scrollY > 64);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     const node = headerRef.current;
@@ -36,7 +28,7 @@ export function Header() {
     const observer = new ResizeObserver(apply);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [compact]);
+  }, []);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,12 +40,7 @@ export function Header() {
   }
 
   return (
-    <header
-      className={compact ? "masthead masthead-compact" : "masthead"}
-      id="site-header"
-      ref={headerRef}
-      data-compact={compact ? "true" : "false"}
-    >
+    <header className="masthead" id="site-header" ref={headerRef}>
       <div className="wrap masthead-bar">
         <Link className="wordmark" to="/" aria-label="Fairlot, home">
           Fairlot
@@ -96,7 +83,7 @@ export function Header() {
       </div>
       <div className="wrap">
         <form id="lot-search" className="lot-search" role="search" method="get" action="/" onSubmit={onSubmit}>
-          <label htmlFor="search-query" className={compact ? "sr-only" : undefined}>
+          <label htmlFor="search-query">
             What do you want?
           </label>
           <div className="search-row">

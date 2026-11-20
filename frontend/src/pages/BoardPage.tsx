@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, createWant, huntWant, listListings, searchListings } from "../api/client";
 import { useAuth } from "../auth";
-import { ActivityPanel } from "../components/ActivityPanel";
 import { Hero } from "../components/Hero";
 import { ListingGrid } from "../components/ListingGrid";
 import {
@@ -22,7 +21,7 @@ import {
 } from "../lib/format";
 import { saveWant } from "../lib/session";
 import { useTitle } from "../lib/title";
-import type { Category, ListingCard, Origin, SortKey } from "../types";
+import type { ListingCard, Origin, SortKey } from "../types";
 import { Marks } from "../components/Marks";
 import { PhotoFrame } from "../components/PhotoFrame";
 import { Price } from "../components/Price";
@@ -148,12 +147,40 @@ export function BoardPage() {
       <div className="wrap board">
         {catalogue ? (
           <div className="catalogue">
-            <FilterBar q={q} category={category} sort={sort} place={place} />
             <div className="catalogue-main">
               <header className="catalogue-head">
                 <h1>
                   Results for <q>{q}</q>
                 </h1>
+                <nav className="result-tools" aria-label="Narrow results">
+                  <Link to={boardHref({ q, sort, place })} aria-current={category ? undefined : "true"}>
+                    All
+                  </Link>
+                  {CATEGORIES.map((item) => (
+                    <Link
+                      key={item}
+                      to={boardHref({ q, category: item, sort, place })}
+                      aria-current={category === item ? "true" : undefined}
+                    >
+                      {CATEGORY_LABEL[item]}
+                    </Link>
+                  ))}
+                  <Link to={boardHref({ q, category, sort })} aria-current={place === "all" ? "true" : undefined}>
+                    Anywhere
+                  </Link>
+                  <Link
+                    to={boardHref({ q, category, sort, place: "fairlot" })}
+                    aria-current={place === "fairlot" ? "true" : undefined}
+                  >
+                    Fairlot
+                  </Link>
+                  <Link
+                    to={boardHref({ q, category, sort, place: "external" })}
+                    aria-current={place === "external" ? "true" : undefined}
+                  >
+                    Elsewhere
+                  </Link>
+                </nav>
                 {load.status === "ready" ? (
                   <p className="count" aria-live="polite">
                     {listings.length === 1 ? "1 listing" : `${listings.length} listings`}
@@ -222,80 +249,10 @@ export function BoardPage() {
               <EmptyCategory label={CATEGORY_LABEL[category]} />
             ) : null}
             {load.status === "ready" && listings.length === 0 && !category ? <EmptySoon /> : null}
-            <ActivityPanel />
           </>
         )}
       </div>
     </>
-  );
-}
-
-function FilterBar({
-  q,
-  category,
-  sort,
-  place,
-}: {
-  q: string;
-  category: Category | null;
-  sort: SortKey;
-  place: string;
-}) {
-  const navigate = useNavigate();
-  return (
-    <aside className="catalogue-side" aria-label="Filter results">
-      <h2>Category</h2>
-      <nav className="cats cats-stack" aria-label="Filter by category">
-        <Link to={boardHref({ q, sort })} aria-current={category ? undefined : "true"}>
-          All
-        </Link>
-        {CATEGORIES.map((item) => (
-          <Link
-            key={item}
-            to={boardHref({ q, category: item, sort })}
-            aria-current={category === item ? "true" : undefined}
-          >
-            {CATEGORY_LABEL[item]}
-          </Link>
-        ))}
-      </nav>
-      <form id="catalogue-sort" className="sort-form" method="get" action="/">
-        <input type="hidden" name="q" value={q} />
-        {category ? <input type="hidden" name="category" value={category} /> : null}
-        <label htmlFor="sort">Sort</label>
-        <select
-          id="sort"
-          name="sort"
-          value={sort}
-          onChange={(event) => {
-            navigate(boardHref({ q, category, sort: event.target.value }));
-          }}
-        >
-          <option value="newest">Newest</option>
-          <option value="price_asc">Price, low to high</option>
-          <option value="price_desc">Price, high to low</option>
-        </select>
-        <button type="submit">Apply</button>
-      </form>
-      <h2>Where</h2>
-      <nav className="cats cats-stack" aria-label="Filter by source">
-        <Link to={boardHref({ q, category, sort })} aria-current={place === "all" ? "true" : undefined}>
-          Anywhere
-        </Link>
-        <Link
-          to={boardHref({ q, category, sort, place: "fairlot" })}
-          aria-current={place === "fairlot" ? "true" : undefined}
-        >
-          Fairlot
-        </Link>
-        <Link
-          to={boardHref({ q, category, sort, place: "external" })}
-          aria-current={place === "external" ? "true" : undefined}
-        >
-          Elsewhere
-        </Link>
-      </nav>
-    </aside>
   );
 }
 

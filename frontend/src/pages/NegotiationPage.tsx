@@ -1,9 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { acceptNegotiation, ApiError, getListing, getNegotiation } from "../api/client";
 import { TranscriptSkeleton, ErrorNotice, Missing } from "../components/States";
 import { formatStamp, formatUsd, FROM_LABEL, KIND_LABEL } from "../lib/format";
-import { gsap, ScrollTrigger, useReducedMotion } from "../lib/scroll";
 import { useTitle } from "../lib/title";
 import type { ListingDetail, Negotiation } from "../types";
 
@@ -18,8 +17,6 @@ export function NegotiationPage() {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState("");
-  const root = useRef<HTMLOListElement>(null);
-  const reduced = useReducedMotion();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,34 +42,6 @@ export function NegotiationPage() {
 
   const negotiation = load.status === "ready" ? load.negotiation : null;
   useTitle(negotiation ? (negotiation.outcome === "deal" ? "Deal" : "No deal") : "Negotiation");
-
-  useLayoutEffect(() => {
-    const list = root.current;
-    if (!list || reduced || !negotiation) return;
-    const ctx = gsap.context(() => {
-      const spokes = gsap.utils.toArray<HTMLElement>(".spoke", list);
-      spokes.forEach((spoke) => {
-        const item = spoke.parentElement;
-        if (!item) return;
-        gsap.fromTo(
-          spoke,
-          { scaleY: 0 },
-          {
-            scaleY: 1,
-            ease: "none",
-            scrollTrigger: {
-              trigger: item,
-              start: "top 80%",
-              end: "top 40%",
-              scrub: true,
-            },
-          },
-        );
-      });
-      ScrollTrigger.refresh();
-    }, list);
-    return () => ctx.revert();
-  }, [negotiation, reduced]);
 
   if (load.status === "loading") {
     return (
@@ -149,7 +118,7 @@ export function NegotiationPage() {
       {negotiation.messages.length === 0 ? (
         <p>No offers were recorded.</p>
       ) : (
-        <ol className="transcript" ref={root}>
+        <ol className="transcript">
           {negotiation.messages.map((message, index) => (
             <li key={`${message.at}-${index}`} data-from={message.from} data-kind={message.kind}>
               <span className="spoke" aria-hidden="true" />
