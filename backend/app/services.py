@@ -73,6 +73,11 @@ _FORBIDDEN_WORDS = (
 )
 
 
+# Hunt opens negotiations on listings asking up to this multiple of the buyer's
+# ceiling. The negotiator still never offers more than the ceiling itself.
+HUNT_STRETCH = 1.25
+
+
 def _now_iso() -> str:
     from datetime import datetime, timezone
 
@@ -87,14 +92,19 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def limits_for_asking_price(price: int) -> Limits:
+def limits_for_asking_price(price: int, min_price: int | None = None) -> Limits:
     """Server-side policy for a listing a person just published. Not returned.
 
     The numbers are a seller floor and a fallback buyer ceiling for the
     on-site negotiate endpoint. A want uses its own stored ceiling instead.
+    A seller-supplied minimum wins over the default floor, capped at the
+    asking price.
     """
 
-    seller_min = max(1, int(round(price * 0.75)))
+    if min_price is not None:
+        seller_min = max(1, min(int(min_price), price - 1))
+    else:
+        seller_min = max(1, int(round(price * 0.75)))
     buyer_max = max(seller_min, int(round(price * 0.95)))
     return Limits(buyer_max=buyer_max, seller_min=seller_min)
 
@@ -676,7 +686,7 @@ def _consider_matches(want_id: str, *, finish: bool) -> int:
     ceiling = repo.get_want_max(want_id)
     opened = 0
     for match, listing in _ranked_matches(criteria):
-        if ceiling is not None and listing.price > ceiling:
+        if ceiling is not None and listing.price > ceiling * HUNT_STRETCH:
             continue
         if listing.origin == "scout":
             _remember_external(want_id, listing, match.score, match.reason)
