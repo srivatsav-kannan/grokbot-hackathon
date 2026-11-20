@@ -93,6 +93,8 @@ Each teammate used their own Grok Bot on a separate track, in parallel, on featu
 - @heruirayli's Grok Bot built the live Scout fetcher as [PR #2](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/2) and wrote this README.
 - @unclesdad's bot landed the Vite + React + TypeScript UI as [PR #6](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/6) and polished the board in [PR #8](https://github.com/srivatsav-kannan/grokbot-hackathon/pull/8).
 
+The cleaned session for that frontend build is in [docs/grok-bot-history.md](docs/grok-bot-history.md).
+
 ## How to run it
 
 Dev API (stubs, no key required):
