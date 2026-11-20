@@ -8,7 +8,9 @@ import type {
   Negotiation,
   NotificationsResponse,
   PublishListingRequest,
+  DealsResponse,
   SearchResponse,
+  ThreadView,
   UserPublic,
   WantCreated,
   WantView,
@@ -239,4 +241,46 @@ export function acceptNegotiation(id: string): Promise<Negotiation> {
 
 export function getActivity(signal?: AbortSignal): Promise<{ events: { at: string; message: string }[] }> {
   return request("/api/activity", { signal });
+}
+
+export function getDeals(signal?: AbortSignal): Promise<DealsResponse> {
+  return request<DealsResponse>("/api/deals", { signal });
+}
+
+export function openThread(body: {
+  listing_id: string;
+  intent: "offer" | "message" | "bot";
+  text?: string;
+  amount?: number;
+  limit?: number;
+}): Promise<ThreadView> {
+  return request<ThreadView>("/api/threads", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function getThread(id: string, signal?: AbortSignal): Promise<ThreadView> {
+  return request<ThreadView>(`/api/threads/${encodeURIComponent(id)}`, { signal });
+}
+
+export function postThreadMessage(
+  id: string,
+  body: { text?: string; amount?: number; kind: "text" | "offer" | "counter" | "accept" | "decline" },
+): Promise<ThreadView> {
+  return request<ThreadView>(`/api/threads/${encodeURIComponent(id)}/messages`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function setThreadMode(id: string, mode: "manual" | "bot"): Promise<ThreadView> {
+  return request<ThreadView>(`/api/threads/${encodeURIComponent(id)}/mode`, {
+    method: "POST",
+    body: JSON.stringify({ mode }),
+  });
+}
+
+export function setThreadLimit(id: string, limit: number): Promise<ThreadView> {
+  return request<ThreadView>(`/api/threads/${encodeURIComponent(id)}/limit`, {
+    method: "POST",
+    body: JSON.stringify({ limit }),
+  });
 }

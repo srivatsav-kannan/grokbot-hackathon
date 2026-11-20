@@ -54,11 +54,17 @@ export interface ListingCard {
   inspection: InspectionSummary;
 }
 
+export interface Outreach {
+  amount: number;
+  message: string;
+}
+
 export interface ListingDetail extends Omit<ListingCard, "appraisal" | "inspection"> {
   description: string;
   source_url: string | null;
   appraisal: Appraisal;
   inspection: Inspection;
+  outreach?: Outreach | null;
 }
 
 export interface ListingListResponse {
@@ -203,3 +209,44 @@ export interface ErrorResponse {
 }
 
 export type SortKey = "newest" | "price_asc" | "price_desc";
+
+export type ThreadAuthor = "buyer" | "buyer_bot" | "seller" | "seller_bot";
+
+export interface ThreadMessage {
+  at: string;
+  author: ThreadAuthor;
+  kind: string;
+  amount: number | null;
+  text: string;
+}
+
+export interface ThreadView {
+  id: string;
+  listing_id: string;
+  listing_title: string;
+  listing_price: number;
+  origin: Origin;
+  role: "buyer" | "seller";
+  want_id: string | null;
+  want_label: string | null;
+  buyer_mode: "manual" | "bot";
+  seller_mode: "manual" | "bot";
+  status: "open" | "deal" | "declined";
+  summary: string;
+  messages: ThreadMessage[];
+  my_limit: number | null;
+}
+
+export interface ThreadSummary {
+  id: string;
+  listing_id: string;
+  title: string;
+  summary: string;
+  updated_at: string;
+}
+
+export interface DealsResponse {
+  buyer_bots: { id: string; label: string; threads: ThreadSummary[] }[];
+  direct: ThreadSummary[];
+  listings: { listing_id: string; title: string; threads: ThreadSummary[] }[];
+}
