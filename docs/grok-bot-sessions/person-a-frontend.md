@@ -110,7 +110,7 @@ start on the frontend, we have no api (plumbing) yet but assume info will come l
 Starting the frontend now: a gold, white and red AI-native Craigslist with scroll animations, built on mock data so the API can plug in later.
 
 **Grok Bot (Grokky):**
-I've started a coding agent on the `frontend/` build in [the hackathon repo](https://github.com/srivatsav-kannan/grokbot-hackathon). It's using Vite, React and TypeScript with gold, white and red design tokens and scroll-driven motion (which turns off for people who set reduced motion), plus accessible markup and the feed, detail, sell-from-photo and negotiation screens. It runs on mock listings behind one API client, so the real API can drop in later through `VITE_API_BASE_URL`. Follow along [here](https://cursor.com/agents/bc-a9131728-ba16-568a-9c8f-4bd19596e291). It'll open a pull request with screenshots when it's done.
+I've started a coding agent on the `frontend/` build in [the hackathon repo](https://github.com/srivatsav-kannan/grokbot-hackathon). It's using Vite, React and TypeScript with gold, white and red design tokens and scroll-driven motion (which turns off for people who set reduced motion), plus accessible markup and the feed, detail, sell-from-photo and negotiation screens. It runs on mock listings behind one API client, so the real API can drop in later through `VITE_API_BASE_URL`. Follow along [Cursor agent link removed]. It'll open a pull request with screenshots when it's done.
 
 [launched a Cursor cloud agent]
 

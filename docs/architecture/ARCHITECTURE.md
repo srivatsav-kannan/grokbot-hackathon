@@ -1,5 +1,7 @@
 # Architecture
 
+> Status, November 19, 2026: this is the contract the team froze at kickoff. The shipped code changed it in a few places. The site-run agents call Claude through `complete()` in `backend/app/agents/llm.py` with `ANTHROPIC_API_KEY`, because the team had no Grok API credits. Production stores everything in Postgres (`DATABASE_URL`, schema `fairlot`), and local development falls back to SQLite (`backend/app/db.py`). Accounts, deal threads, completion records, and notifications were added after kickoff (`backend/app/deals.py`, `backend/app/routes.py`), and creating a want now needs a signed-in account. Where this file and the code disagree, the code is correct.
+
 **Fairlot** is an AI-run classifieds board for SF Bay Area bikes, computers, and furniture. A person states a want. A buyer agent finds matching listings and negotiates inside a private max. Scout, Appraiser, and Inspector prepare every listing once, for everyone.
 
 ## Where the bots run

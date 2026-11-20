@@ -1,6 +1,8 @@
 # Integration
 
-How the pieces call each other. Product behavior is in `docs/ARCHITECTURE.md`. A user's bot follows `docs/GROKBOT_INTEGRATION.md`. If this file and the code disagree, the code in `backend/app/schemas.py` and the routes win, and this file gets fixed in the same change.
+> Status, November 19, 2026: this call graph was written at kickoff. The model key is now `ANTHROPIC_API_KEY` (plus the optional `ANTHROPIC_*` model variables in `.env.example`) in place of `GROK_API_KEY`, and the repository layer writes to Postgres when `DATABASE_URL` is set and to SQLite otherwise. Deal threads live in `backend/app/deals.py`, which this file does not cover.
+
+How the pieces call each other. Product behavior is in [ARCHITECTURE.md](ARCHITECTURE.md). A user's bot follows [GROKBOT_INTEGRATION.md](GROKBOT_INTEGRATION.md). If this file and the code disagree, the code in `backend/app/schemas.py` and the routes win, and this file gets fixed in the same change.
 
 JSON is `snake_case`. Money is integer US dollars. Enums exist only in `backend/app/schemas.py`:
 
@@ -225,4 +227,4 @@ Leave the `stub_*` functions in place and call them when `complete()` returns `N
 
 ### @heruirayli — data, API, ship
 
-You own the route, service, repository, schema, runner, seed, and Scout files. `scout_run` is the fetch plug-in. On a challenge, raise `ScoutStopped(reason, message)` and stop. `runner.py` is the plug-in for a later queue. Keep `docs/GROKBOT_INTEGRATION.md` equal to the live JSON.
+You own the route, service, repository, schema, runner, seed, and Scout files. `scout_run` is the fetch plug-in. On a challenge, raise `ScoutStopped(reason, message)` and stop. `runner.py` is the plug-in for a later queue. Keep [GROKBOT_INTEGRATION.md](GROKBOT_INTEGRATION.md) equal to the live JSON.

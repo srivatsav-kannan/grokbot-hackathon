@@ -1,6 +1,8 @@
 # Tasks
 
-Handles only. Contract: `docs/ARCHITECTURE.md`. Bot client: `docs/GROKBOT_INTEGRATION.md`.
+> This is the task split written at kickoff, kept as a record. The checkboxes were not updated during the build. The final state is in the [root README](../../README.md).
+
+Handles only. Contract: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md). Bot client: [GROKBOT_INTEGRATION.md](../architecture/GROKBOT_INTEGRATION.md).
 
 ## Person A · @unclesdad · Frontend and design
 

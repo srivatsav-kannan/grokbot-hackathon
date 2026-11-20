@@ -1,5 +1,7 @@
 # Grok Bot integration
 
+> Status, November 19, 2026: `POST /api/wants` now requires a signed-in Fairlot account. Send the session cookie that `POST /api/auth/login` sets. The server also accepts that same session value as `Authorization: Bearer`. The want routes below accept either that session or the want's own `access_token`.
+
 A user's own Grok Bot is a remote control for Fairlot. It posts a want, reads matches, and points the buyer agent at a listing. Negotiation runs on the Fairlot server. The bot never receives a buyer's max or a seller's minimum.
 
 Base URL is the public site, path prefix `/api`. Plain HTTP and JSON. Send `Content-Type: application/json` except for the photo lister, which the bot does not need.

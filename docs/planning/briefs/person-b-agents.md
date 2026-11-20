@@ -1,4 +1,6 @@
-# Brief — Person B, AI agents
+# Brief: Person B, AI agents
+
+> Kickoff brief for one teammate's Grok Bot, kept as a record of how the work was split.
 
 Fairlot is an AI-run classifieds board for SF Bay Area bikes, computers, and furniture (Berkeley x Stanford Grok Bot Hackathon, Best Design, about two hours). Site-run agents on this server price every listing, check it for scams, write a listing from a photo, and negotiate for a want inside ceilings only the server knows. A user's own Grok Bot is only a client.
 
@@ -16,11 +18,11 @@ Fairlot is an AI-run classifieds board for SF Bay Area bikes, computers, and fur
 
 ## Do not edit
 
-`backend/app/agents/scout.py` (@heruirayli). `backend/app/routes.py`, `schemas.py`, `db.py`, `repository.py`, `services.py`, `runner.py`, `seed.py`, `main.py`. `frontend/` (@unclesdad). `docs/GROKBOT_INTEGRATION.md`. Ask the owner instead of changing a signature.
+`backend/app/agents/scout.py` (@heruirayli). `backend/app/routes.py`, `schemas.py`, `db.py`, `repository.py`, `services.py`, `runner.py`, `seed.py`, `main.py`. `frontend/` (@unclesdad). [GROKBOT_INTEGRATION.md](../../architecture/GROKBOT_INTEGRATION.md). Ask the owner instead of changing a signature.
 
 ## Contract you must honor
 
-Signatures and return types are in `docs/INTEGRATION.md`. HTTP models are `backend/app/schemas.py`.
+Signatures and return types are in [INTEGRATION.md](../../architecture/INTEGRATION.md). HTTP models are `backend/app/schemas.py`.
 
 ```text
 parse_want(text: str) -> WantCriteria
@@ -64,6 +66,6 @@ No secrets, keys, real names, emails, or phone numbers in commits. Keys from the
 
 ## Done
 
-The functions above still match `docs/INTEGRATION.md`, hunt and negotiate return only public transcripts, the leak test passes, and a missing key still serves stub results.
+The functions above still match [INTEGRATION.md](../../architecture/INTEGRATION.md), hunt and negotiate return only public transcripts, the leak test passes, and a missing key still serves stub results.
 
 You own the T+1:00 agent checkpoint: live model or a clean stub fallback, with the leak test green.

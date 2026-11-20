@@ -1,18 +1,20 @@
 # Roadmap
 
+> This is the plan written at kickoff for the two-hour build, kept as a record. The checkboxes were not updated during the build. The final state is in the [root README](../../README.md).
+
 2-hour build. If a phase slips, cut in the order below. Do not shrink the feed to save a later demo.
 
 ## Cut order
 
 1. **Core feed + scam/price badges.** Photo grid, listing detail, verdict and trust on every card. Appraiser and Inspector results are global.
 2. **Wants + hunt.** Composer, `parse_want`, match list, buyer agent negotiating inside a server-only max, seller agent inside a server-only minimum. Direct-at-one-listing included here.
-3. **Grok Bot integration demo.** Same want API called from a user's Grok Bot, with the fake-token flow in `docs/GROKBOT_INTEGRATION.md`.
+3. **Grok Bot integration demo.** Same want API called from a user's Grok Bot, with the fake-token flow in [GROKBOT_INTEGRATION.md](../architecture/GROKBOT_INTEGRATION.md).
 
 Ship 1 before 2, and 2 before 3. A strong feed with badges beats a bot demo on a broken board.
 
 ## T+0:00 – 0:15 · Plan and freeze
 
-- Docs on `main`. API paths and field names frozen in `docs/ARCHITECTURE.md`.
+- Docs on `main`. API paths and field names frozen in [ARCHITECTURE.md](../architecture/ARCHITECTURE.md).
 - Skeleton after that: `frontend/`, `backend/` with one module per agent, SQLite, `.env.example`, `.gitignore`.
 
 ## T+0:15 – 1:00 · Parallel build

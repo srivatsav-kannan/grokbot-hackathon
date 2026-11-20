@@ -1,4 +1,6 @@
-# Brief — Person C, data, API, and ship
+# Brief: Person C, data, API, and ship
+
+> Kickoff brief for one teammate's Grok Bot, kept as a record of how the work was split.
 
 Fairlot is an AI-run classifieds board for SF Bay Area bikes, computers, and furniture (Berkeley x Stanford Grok Bot Hackathon, Best Design, about two hours). This server stores listings, wants, matches, negotiations, and private ceilings, and it runs Scout, the hunt runner, and the HTTP API a user's Grok Bot calls. Negotiation stays on the server so ceilings stay private.
 
@@ -10,7 +12,7 @@ Fairlot is an AI-run classifieds board for SF Bay Area bikes, computers, and fur
 - `backend/app/agents/scout.py`
 - `backend/tests/test_smoke.py`
 - `Dockerfile`, `.env.example`, `.gitignore`, `README.md`
-- `docs/GROKBOT_INTEGRATION.md` (keep it true to the live JSON)
+- [GROKBOT_INTEGRATION.md](../../architecture/GROKBOT_INTEGRATION.md) (keep it true to the live JSON)
 
 ## Do not edit
 
@@ -18,7 +20,7 @@ Fairlot is an AI-run classifieds board for SF Bay Area bikes, computers, and fur
 
 ## Contract you must honor
 
-`docs/ARCHITECTURE.md` is the product contract. `docs/INTEGRATION.md` is the call graph. `backend/app/schemas.py` is the JSON.
+[ARCHITECTURE.md](../../architecture/ARCHITECTURE.md) is the product contract. [INTEGRATION.md](../../architecture/INTEGRATION.md) is the call graph. `backend/app/schemas.py` is the JSON.
 
 Public routes already wired:
 
@@ -34,7 +36,7 @@ Scout pipeline you own: `scout_run` → insert listing → `appraise` → `inspe
 
 1. **Now.** `python -m pytest backend/tests -q`. Read `routes.py`, `services.py`, `runner.py`, and `agents/scout.py`.
 2. **T+0:15 – 1:00.** Replace the Scout stub with a polite fetcher that obeys the rules above. Keep seed rows (`origin: "seed"`) if a category comes back empty. Confirm new rows are appraised and inspected before they are readable.
-3. **T+1:00 – 1:30.** After @srivatsav-kannan lands real `complete()` calls, the routes should still be the ones in the table. Update `docs/GROKBOT_INTEGRATION.md` if a JSON field changes (it should not, without all three).
+3. **T+1:00 – 1:30.** After @srivatsav-kannan lands real `complete()` calls, the routes should still be the ones in the table. Update [GROKBOT_INTEGRATION.md](../../architecture/GROKBOT_INTEGRATION.md) if a JSON field changes (it should not, without all three).
 4. **T+1:30 – 1:50.** One public HTTPS URL. Laptop and phone. No login. Mount or copy `frontend/dist` from @unclesdad.
 5. **T+1:50 – 2:00.** Fill the README, make the repo public, add a Grok Bot session export with personal info removed, submit.
 
@@ -66,6 +68,6 @@ No secrets, keys, real names, emails, or phone numbers. `GROK_API_KEY` from the 
 
 ## Done
 
-The endpoints above match `docs/ARCHITECTURE.md` and `docs/GROKBOT_INTEGRATION.md`, Scout either fetches politely or reports why it stopped, the process serves `frontend/dist` when present, and the public link works without an account.
+The endpoints above match [ARCHITECTURE.md](../../architecture/ARCHITECTURE.md) and [GROKBOT_INTEGRATION.md](../../architecture/GROKBOT_INTEGRATION.md), Scout either fetches politely or reports why it stopped, the process serves `frontend/dist` when present, and the public link works without an account.
 
 You own T+1:30 (deployed) and T+2:00 (README, public repo, cleaned session export, submission).

@@ -1,4 +1,6 @@
-# Brief — Person A, frontend and design
+# Brief: Person A, frontend and design
+
+> Kickoff brief for one teammate's Grok Bot, kept as a record of how the work was split.
 
 Fairlot is an AI-run classifieds board for SF Bay Area bikes, computers, and furniture (Berkeley x Stanford Grok Bot Hackathon, Best Design, about two hours). Every listing shows up already priced and checked. A buyer agent can hunt for what someone wants and negotiate inside a ceiling that never reaches the browser.
 
@@ -6,15 +8,15 @@ Fairlot is an AI-run classifieds board for SF Bay Area bikes, computers, and fur
 
 ## You work in
 
-`frontend/` only. Vite, React, TypeScript. Read `docs/INTEGRATION.md` and `GET /openapi.json` on the API (default `http://localhost:8000/openapi.json`). Hand-write the client types to match `backend/app/schemas.py`, or generate them. Do not invent fields.
+`frontend/` only. Vite, React, TypeScript. Read [INTEGRATION.md](../../architecture/INTEGRATION.md) and `GET /openapi.json` on the API (default `http://localhost:8000/openapi.json`). Hand-write the client types to match `backend/app/schemas.py`, or generate them. Do not invent fields.
 
 ## Do not edit
 
-`backend/`, `docs/GROKBOT_INTEGRATION.md`, agent files, seed data. Ask @heruirayli for API changes and @srivatsav-kannan for badge meanings. This plumbing branch intentionally has no `frontend/` files so it does not collide with you.
+`backend/`, [GROKBOT_INTEGRATION.md](../../architecture/GROKBOT_INTEGRATION.md), agent files, seed data. Ask @heruirayli for API changes and @srivatsav-kannan for badge meanings. This plumbing branch intentionally has no `frontend/` files so it does not collide with you.
 
 ## Contract you must honor
 
-Frozen names and enums are in `docs/INTEGRATION.md`.
+Frozen names and enums are in [INTEGRATION.md](../../architecture/INTEGRATION.md).
 
 Feed and listing:
 
