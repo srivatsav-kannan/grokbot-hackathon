@@ -1510,3 +1510,19 @@ button:disabled {
 .bot-card h2 { margin: 0; font-size: 1.1rem; }
 .bot-card input { padding: 0.55rem 0.6rem; border: 1px solid rgba(0, 0, 0, 0.25); border-radius: 8px; font: inherit; max-width: 12rem; }
 .bot-card button { width: fit-content; }
+
+.deal-side { margin-top: 1rem; }
+.deal-side > h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: #5f5f5f; margin: 0 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid rgba(0, 0, 0, 0.1); }
+.deal-group { margin-bottom: 0.75rem; }
+.deal-group-head { display: grid; gap: 0.1rem; margin: 0 0 0.3rem; font-size: 0.9rem; }
+.deal-group-head span { font-size: 0.8rem; color: #5f5f5f; }
+.deal-group-head a { color: inherit; }
+.thread-links, .match-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.thread-links a { display: grid; gap: 0.1rem; padding: 0.5rem 0.6rem; border-radius: 8px; color: inherit; text-decoration: none; border: 1px solid rgba(0, 0, 0, 0.08); }
+.thread-links a[aria-current="page"] { background: rgba(15, 110, 86, 0.1); border-color: rgba(15, 110, 86, 0.35); }
+.thread-links span { font-size: 0.8rem; color: #5f5f5f; overflow-wrap: anywhere; }
+.match-list a { font-size: 0.82rem; }
+.end-convo { width: fit-content; background: transparent; border: 1px solid rgba(160, 30, 30, 0.5); color: #9b1c1c; border-radius: 8px; padding: 0.35rem 0.8rem; font: inherit; font-size: 0.85rem; cursor: pointer; }
+
+.as-button { display: inline-block; text-align: center; text-decoration: none; padding: 0.65rem 1rem; border-radius: 8px; width: fit-content; }
+.owner-panel { border-color: rgba(15, 110, 86, 0.35); background: rgba(15, 110, 86, 0.05); }

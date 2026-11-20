@@ -31,6 +31,7 @@ from backend.app.agents.lister import draft_from_photo
 from backend.app.agents.llm import complete, message_effort, message_model, parse_json_reply
 from backend.app.agents.negotiator import negotiate
 from backend.app.agents.scout import ScoutStopped, scout_query, scout_run
+from backend.app.db import connect
 from backend.app.errors import APIError
 from backend.app.repository import Limits, ListingRecord
 from backend.app.schemas import (
@@ -247,11 +248,20 @@ def list_listings(category: str | None, q: str | None, kind: str | None = None) 
     return ListingListResponse(listings=[_card(row) for row in rows])
 
 
-def get_listing(listing_id: str) -> ListingDetail:
+def get_listing(listing_id: str, user_id: str | None = None) -> ListingDetail:
     listing = repo.get_listing(listing_id)
     if listing is None:
         raise APIError(404, "not_found", "Listing not found.")
-    return _detail(listing)
+    detail = _detail(listing)
+    if user_id:
+        detail.mine = repo.get_listing_owner(listing_id) == user_id
+        with connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM threads WHERE listing_id = ? AND buyer_id = ?",
+                (listing_id, user_id),
+            ).fetchone()
+        detail.my_thread_id = None if row is None else str(row["id"])
+    return detail
 
 
 def create_draft(photo: bytes, filename: str | None) -> ListerResponse:
@@ -262,12 +272,33 @@ def create_draft(photo: bytes, filename: str | None) -> ListerResponse:
     return ListerResponse(draft=draft_from_photo(photo, filename))
 
 
-def publish_listing(body: PublishListingRequest, user_id: str) -> ListingDetail:
+def publish_listing(body: PublishListingRequest, user_id: str, idempotency_key: str | None = None) -> ListingDetail:
+    from backend.app.deals import _existing_key, _save_key
+
+    prior = _existing_key(user_id, "listing", idempotency_key)
+    if prior:
+        found = repo.get_listing(prior)
+        if found is not None:
+            return _detail(found)
     title = body.title.strip()
     description = body.description.strip()
     neighborhood = body.neighborhood.strip()
     if not title or not description or not neighborhood:
         raise APIError(400, "bad_request", "Title, description, and neighborhood are required.")
+    with connect() as conn:
+        same = conn.execute(
+            """
+            SELECT id FROM listings
+            WHERE user_id = ? AND origin = 'lister' AND title = ? AND price = ? AND status != 'sold'
+            """,
+            (user_id, title, body.price),
+        ).fetchone()
+    if same is not None:
+        # The same seller posting the same item twice gets the first listing back.
+        _save_key(user_id, "listing", idempotency_key, str(same["id"]))
+        found = repo.get_listing(str(same["id"]))
+        if found is not None:
+            return _detail(found)
     listing = ListingRecord(
         id=_new_id("lst_"),
         category=body.category,
@@ -286,8 +317,11 @@ def publish_listing(body: PublishListingRequest, user_id: str) -> ListingDetail:
     if body.minimum is not None:
         limits = Limits(buyer_max=max(limits.buyer_max, body.minimum), seller_min=body.minimum)
     repo.insert_listing(listing, appraisal, inspection, limits, user_id=user_id)
+    _save_key(user_id, "listing", idempotency_key, listing.id)
     _note(f"Lister published {listing.title} on Fairlot")
-    return _detail(listing)
+    detail = _detail(listing)
+    detail.mine = True
+    return detail
 
 
 def _negotiate_and_store(

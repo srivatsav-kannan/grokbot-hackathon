@@ -104,6 +104,8 @@ export function SellPage() {
     }
   }
 
+  const publishKey = useRef<string | null>(null);
+
   async function onPublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file || !draft) return;
@@ -125,7 +127,7 @@ export function SellPage() {
         photos: [photoUrl],
         neighborhood: neighborhood.trim(),
         minimum: floor != null && Number.isFinite(floor) ? floor : undefined,
-      });
+      }, (publishKey.current ??= crypto.randomUUID()));
       navigate(`/listings/${listing.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The listing wasn't published.");

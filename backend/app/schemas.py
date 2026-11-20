@@ -80,6 +80,8 @@ class ListingDetail(ListingCard):
     appraisal: Appraisal
     inspection: Inspection
     outreach: Outreach | None = None
+    mine: bool = False
+    my_thread_id: str | None = None
 
 
 class ListingListResponse(BaseModel):
@@ -373,6 +375,9 @@ class ListingInbox(BaseModel):
     listing_id: str
     title: str
     threads: list[ThreadSummary]
+    price: int | None = None
+    status: str = "active"
+    sold_for: int | None = None
 
 
 class DealsResponse(BaseModel):

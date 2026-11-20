@@ -110,7 +110,7 @@ export function createDraft(photo: File, signal?: AbortSignal): Promise<ListerRe
   return request<ListerResponse>("/api/lister", { method: "POST", body, signal });
 }
 
-export function publishListing(body: PublishListingRequest): Promise<ListingDetail> {
+export function publishListing(body: PublishListingRequest, idempotencyKey?: string): Promise<ListingDetail> {
   const payload: PublishListingRequest = {
     category: body.category,
     title: body.title,
@@ -120,9 +120,12 @@ export function publishListing(body: PublishListingRequest): Promise<ListingDeta
     neighborhood: body.neighborhood,
   };
   if (body.minimum != null) payload.minimum = body.minimum;
+  const headers: HeadersInit = {};
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   return request<ListingDetail>("/api/listings", {
     method: "POST",
     body: JSON.stringify(payload),
+    headers,
   });
 }
 

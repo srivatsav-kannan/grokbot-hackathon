@@ -184,7 +184,29 @@ export function ListingPage() {
             </div>
           ) : null}
 
-          {listing.origin === "scout" || listing.sold_for != null ? null : (
+          {listing.mine ? (
+            <div className="offer-panel owner-panel">
+              <h2>This is your listing</h2>
+              <p className="offer-hint">
+                {listing.sold_for != null
+                  ? `You sold it for ${formatUsd(listing.sold_for)}.`
+                  : "Your seller bot answers offers here and never goes below your private minimum. You can step in or end any conversation."}
+              </p>
+              <Link className="button-primary as-button" to="/deals">
+                See offers on it in Deals
+              </Link>
+            </div>
+          ) : null}
+          {!listing.mine && listing.my_thread_id ? (
+            <div className="offer-panel">
+              <h2>You already have a deal going</h2>
+              <p className="offer-hint">Keep talking, change your max, or hand it to your bot in the conversation.</p>
+              <Link className="button-primary as-button" to={`/deals/${listing.my_thread_id}`}>
+                Open the conversation
+              </Link>
+            </div>
+          ) : null}
+          {listing.origin === "scout" || listing.sold_for != null || listing.mine || listing.my_thread_id ? null : (
             <form className="offer-panel" onSubmit={onOffer} noValidate>
               <h2>Make a deal</h2>
               <div className="offer-fields">

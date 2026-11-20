@@ -164,8 +164,13 @@ def get_listings(
 
 
 @router.get("/listings/{listing_id}", response_model=ListingDetail)
-def get_listing(listing_id: str) -> ListingDetail:
-    return services.get_listing(listing_id)
+def get_listing(
+    listing_id: str,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> ListingDetail:
+    viewer = services.user_from_credentials(authorization, _cookie(request))
+    return services.get_listing(listing_id, viewer.id if viewer else None)
 
 
 @router.post("/lister", response_model=ListerResponse)
@@ -181,7 +186,7 @@ def post_listing(
     authorization: Annotated[str | None, Header()] = None,
 ) -> ListingDetail:
     user = _user(request, authorization)
-    return services.publish_listing(body, user.id)
+    return services.publish_listing(body, user.id, request.headers.get("idempotency-key"))
 
 
 @router.post("/negotiations", response_model=Negotiation, status_code=201)

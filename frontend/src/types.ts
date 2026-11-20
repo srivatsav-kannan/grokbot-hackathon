@@ -66,6 +66,8 @@ export interface ListingDetail extends Omit<ListingCard, "appraisal" | "inspecti
   appraisal: Appraisal;
   inspection: Inspection;
   outreach?: Outreach | null;
+  mine?: boolean;
+  my_thread_id?: string | null;
 }
 
 export interface ListingListResponse {
@@ -255,6 +257,6 @@ export interface DealsResponse {
     matches?: { listing_id: string; title: string; price: number; source_name: string }[];
   }[];
   direct: ThreadSummary[];
-  listings: { listing_id: string; title: string; threads: ThreadSummary[] }[];
+  listings: { listing_id: string; title: string; threads: ThreadSummary[]; price?: number | null; status?: string; sold_for?: number | null }[];
   completed?: { id: string; listing_id: string; title: string; price: number; role: "buyer" | "seller"; thread_id: string | null; at: string }[];
 }

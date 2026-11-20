@@ -181,3 +181,32 @@ def test_demo_seller_can_hand_the_waiting_offer_to_its_bot(client):
     assert done["status"] in {"deal", "declined"}
     if done["status"] == "deal":
         assert client.get("/api/deals").json()["completed"][0]["role"] == "seller"
+
+
+def test_seller_bot_ends_a_scam_conversation(client):
+    sign_in(client, email="scammer@fairlot.test")
+    opened = client.post(
+        "/api/threads",
+        json={"listing_id": "lst_07", "intent": "offer", "amount": 300, "limit": 520},
+    ).json()
+    assert opened["status"] == "open"
+    scam = client.post(
+        f"/api/threads/{opened['id']}/messages",
+        json={"kind": "text", "text": "I'm overseas, I'll pay with Apple gift cards and my shipper will pick it up."},
+    ).json()
+    assert scam["status"] == "declined"
+    last = scam["messages"][-1]
+    assert last["author"] == "seller_bot"
+    assert last["kind"] == "decline"
+    assert "gift cards" in last["text"]
+
+
+def test_scam_rules_catch_common_patterns():
+    from backend.app.deals import scam_reason
+
+    assert scam_reason("can you send me the 6 digit verification code google texted you")
+    assert scam_reason("I will mail a cashier's check for more, just refund the difference")
+    assert scam_reason("pay a $50 deposit first to hold it")
+    assert scam_reason("text me at whatsapp")
+    assert scam_reason("Can I see it Saturday morning in Palo Alto?") is None
+    assert scam_reason("Would you take 450 cash at pickup?") is None

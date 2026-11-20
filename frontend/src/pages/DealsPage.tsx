@@ -5,39 +5,22 @@ import { ErrorNotice } from "../components/States";
 import { useAuth } from "../auth";
 import { formatUsd, loginPath } from "../lib/format";
 import { useTitle } from "../lib/title";
-import type { DealsResponse, ThreadView } from "../types";
+import type { DealsResponse, ThreadSummary, ThreadView } from "../types";
 
-type Row = {
-  key: string;
-  title: string;
-  summary: string;
-  threadId: string | null;
-};
-
-function rowsOf(deals: DealsResponse): Row[] {
-  const rows: Row[] = [];
-  for (const bot of deals.buyer_bots) {
-    if (bot.threads.length === 0) {
-      rows.push({ key: bot.id, title: bot.label, summary: "Watching for matches", threadId: null });
-    }
-    for (const thread of bot.threads) {
-      rows.push({
-        key: thread.id,
-        title: thread.title,
-        summary: `${thread.summary} · bot for “${bot.label}”`,
-        threadId: thread.id,
-      });
-    }
-  }
-  for (const thread of deals.direct) {
-    rows.push({ key: thread.id, title: thread.title, summary: thread.summary, threadId: thread.id });
-  }
-  for (const box of deals.listings) {
-    for (const thread of box.threads) {
-      rows.push({ key: thread.id, title: box.title, summary: thread.summary, threadId: thread.id });
-    }
-  }
-  return rows;
+function ThreadLinks({ threads, current }: { threads: ThreadSummary[]; current?: string }) {
+  if (threads.length === 0) return null;
+  return (
+    <ul className="thread-links">
+      {threads.map((thread) => (
+        <li key={thread.id}>
+          <Link to={`/deals/${thread.id}`} aria-current={thread.id === current ? "page" : undefined}>
+            <strong>{thread.title}</strong>
+            <span>{thread.summary}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function whoSaid(author: string, role: "buyer" | "seller"): string {
@@ -168,38 +151,84 @@ export function DealsPage() {
     }
   }
 
-  const rows = deals ? rowsOf(deals) : [];
 
   return (
     <div className={`wrap deals-layout${threadId ? " has-thread" : ""}`}>
-      <aside className="deals-list" aria-label="Conversations">
+      <aside className="deals-list" aria-label="Your deals">
         <h1>Deals</h1>
-        {deals && deals.buyer_bots.length > 0 ? (
-          <section className="deal-records">
-            <h2>Buyer bots</h2>
-            <ul>
-              {deals.buyer_bots.map((bot) => (
-                <li key={bot.id}>
-                  <strong>{bot.label}</strong>
-                  <span>
-                    {bot.status === "negotiating" ? "Negotiating" : bot.status === "done" ? "Done" : "Watching"} ·{" "}
-                    {bot.matches?.length ?? 0} matches · {bot.threads.length} conversations
-                  </span>
+        {deals === null ? <p className="agent-note">Loading…</p> : null}
+
+        <section className="deal-side">
+          <h2>Buying</h2>
+          {deals && deals.buyer_bots.length === 0 && deals.direct.length === 0 ? (
+            <p className="agent-note">
+              Nothing yet. Search for something and start a buyer bot, or open a listing and make a deal.
+            </p>
+          ) : null}
+          {deals?.buyer_bots.map((bot) => (
+            <div className="deal-group" key={bot.id}>
+              <p className="deal-group-head">
+                <strong>Buyer bot: {bot.label}</strong>
+                <span>
+                  {bot.status === "negotiating" ? "Negotiating" : bot.status === "done" ? "Done" : "Watching"} ·{" "}
+                  {bot.matches?.length ?? 0} matches · {bot.threads.length} conversations
+                </span>
+              </p>
+              <ThreadLinks threads={bot.threads} current={threadId} />
+              {bot.threads.length === 0 && (bot.matches ?? []).length > 0 ? (
+                <ul className="match-list">
                   {(bot.matches ?? []).slice(0, 4).map((match) => (
-                    <Link key={match.listing_id} to={`/listings/${match.listing_id}`}>
-                      {match.title} · {formatUsd(match.price)}
-                      {match.source_name ? ` · ${match.source_name}` : ""}
-                    </Link>
+                    <li key={match.listing_id}>
+                      <Link to={`/listings/${match.listing_id}`}>
+                        {match.title} · {formatUsd(match.price)}
+                        {match.source_name ? ` · ${match.source_name}` : ""}
+                      </Link>
+                    </li>
                   ))}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+          {deals && deals.direct.length > 0 ? (
+            <div className="deal-group">
+              <p className="deal-group-head">
+                <strong>Your offers</strong>
+              </p>
+              <ThreadLinks threads={deals.direct} current={threadId} />
+            </div>
+          ) : null}
+        </section>
+
+        <section className="deal-side">
+          <h2>Selling</h2>
+          {deals && deals.listings.length === 0 ? (
+            <p className="agent-note">
+              You have no listings. <Link to="/sell">Sell something</Link> and your seller bot answers offers for you.
+            </p>
+          ) : null}
+          {deals?.listings.map((box) => (
+            <div className="deal-group" key={box.listing_id}>
+              <p className="deal-group-head">
+                <Link to={`/listings/${box.listing_id}`}>
+                  <strong>{box.title}</strong>
+                </Link>
+                <span>
+                  {box.status === "sold" && box.sold_for != null
+                    ? `Sold for ${formatUsd(box.sold_for)}`
+                    : `Asking ${box.price != null ? formatUsd(box.price) : ""} · seller bot on`}{" "}
+                  · {box.threads.length === 1 ? "1 conversation" : `${box.threads.length} conversations`}
+                </span>
+              </p>
+              {box.threads.length === 0 ? <p className="agent-note">No offers yet.</p> : null}
+              <ThreadLinks threads={box.threads} current={threadId} />
+            </div>
+          ))}
+        </section>
+
         {deals?.completed && deals.completed.length > 0 ? (
-          <section className="deal-records">
-            <h2>Completed deals</h2>
-            <ul>
+          <section className="deal-side">
+            <h2>Completed</h2>
+            <ul className="thread-links">
               {deals.completed.map((done) => (
                 <li key={done.id}>
                   <Link to={done.thread_id ? `/deals/${done.thread_id}` : `/listings/${done.listing_id}`}>
@@ -214,25 +243,6 @@ export function DealsPage() {
             </ul>
           </section>
         ) : null}
-        <h2 className="deal-records-head">Conversations</h2>
-        {rows.length === 0 ? <p className="agent-note">No conversations yet.</p> : null}
-        <ul>
-          {rows.map((row) => (
-            <li key={row.key}>
-              {row.threadId ? (
-                <Link to={`/deals/${row.threadId}`} aria-current={row.threadId === threadId ? "page" : undefined}>
-                  <strong>{row.title}</strong>
-                  <span>{row.summary}</span>
-                </Link>
-              ) : (
-                <p>
-                  <strong>{row.title}</strong>
-                  <span>{row.summary}</span>
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
       </aside>
       <section className="deals-chat" aria-label="Conversation">
         {!threadId ? <p className="agent-note">Choose a conversation.</p> : null}
@@ -280,6 +290,26 @@ export function DealsPage() {
                 <p className="offer-hint">
                   Only you see this number. Your bot never goes {thread.role === "buyer" ? "above" : "below"} it.
                 </p>
+                <button
+                  type="button"
+                  className="end-convo"
+                  disabled={sending}
+                  onClick={() => {
+                    if (!window.confirm("End this conversation? Your bot stops negotiating here.")) return;
+                    setSending(true);
+                    setError("");
+                    postThreadMessage(
+                      thread.id,
+                      { kind: "decline", text: "I'm ending this conversation." },
+                      `end-${thread.id}-${thread.messages.length}`,
+                    )
+                      .then((next) => setThread(next))
+                      .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Could not end it."))
+                      .finally(() => setSending(false));
+                  }}
+                >
+                  End conversation
+                </button>
               </div>
             ) : null}
             <ol className="bubbles">
@@ -336,7 +366,7 @@ export function DealsPage() {
                 })()}
               </p>
             ) : thread.status === "declined" ? (
-              <p className="sold-line">This conversation is closed.</p>
+              <p className="sold-line">This conversation ended. Send a new message to reopen it.</p>
             ) : (
               <form className="composer" onSubmit={(event) => void send(event, "text")}>
                 <label>
