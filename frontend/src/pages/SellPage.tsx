@@ -18,13 +18,32 @@ const NEIGHBORHOODS = [
   "Bernal Heights, San Francisco",
 ];
 
-function fileToDataUrl(file: File): Promise<string> {
+function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(new Error("Could not read that photo."));
     reader.readAsDataURL(file);
   });
+}
+
+/** Re-encode any photo the browser can show as a JPEG at most 1400px wide, so every listing photo displays everywhere. */
+async function fileToDataUrl(file: File): Promise<string> {
+  const original = await readAsDataUrl(file);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("That photo format can't be shown in browsers. Use a JPG or PNG."));
+    el.src = original;
+  });
+  const scale = Math.min(1, 1400 / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(image.naturalWidth * scale);
+  canvas.height = Math.round(image.naturalHeight * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return original;
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.85);
 }
 
 export function SellPage() {
@@ -183,7 +202,7 @@ export function SellPage() {
             id="sell-photo"
             name="photo"
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             required={!draft}
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);

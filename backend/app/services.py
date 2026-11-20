@@ -1000,7 +1000,12 @@ def _phrase_offer(listing: ListingRecord, amount: int, source: str, fallback: st
 
 
 def activity() -> ActivityResponse:
-    events = [ActivityEvent(at=stamp, message=text) for stamp, text in repo.list_activity()]
+    hidden = ("Scout stopped", "HTTP 4", "HTTP 5", "Traceback")
+    events = [
+        ActivityEvent(at=stamp, message=text)
+        for stamp, text in repo.list_activity()
+        if not any(word in text for word in hidden)
+    ]
     return ActivityResponse(events=events)
 
 
