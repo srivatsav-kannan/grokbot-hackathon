@@ -205,6 +205,18 @@ def main() -> int:
     check("buyer can end a conversation", ended.get("status") == "declined", ended.get("status"))
     _, seller_end = seller.call("GET", f"/threads/{t4['id']}")
     check("seller sees it ended", seller_end.get("status") == "declined", seller_end.get("status"))
+    closer = Client()
+    closer.call("POST", "/auth/signup", {"email": f"qa-c-{RUN}@example.com", "password": pw})
+    _, t5 = closer.call("POST", "/threads", {"listing_id": lid3, "intent": "offer", "amount": 115, "limit": 120})
+    check("seller bot accepts an offer above its minimum", t5.get("status") == "deal", t5.get("status"))
+    _, feed_after = anon.call("GET", "/listings")
+    visible = {r["id"] for r in feed_after["listings"]}
+    check("sold items leave the feed", not ({lid, lid2, lid3} & visible), {lid, lid2, lid3} & visible)
+    _, sample = anon.call("GET", "/listings/lst_01")
+    check("sample listing has a seller profile", bool(sample.get("seller")), sample.get("seller"))
+    if sample.get("seller"):
+        _, prof = anon.call("GET", f"/sellers/{sample['seller']['id']}")
+        check("seller page lists their other items", len(prof.get("listings", [])) >= 1, prof.get("name"))
 
     # Buyer bot from search
     _, w1 = buyer.call("POST", "/wants", {"text": f"chair under $200 qa {RUN}", "max_price": 200})
