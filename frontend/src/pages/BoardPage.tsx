@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, createWant, huntWant, listListings, searchListings } from "../api/client";
 import { useAuth } from "../auth";
+import { ActivityPanel } from "../components/ActivityPanel";
 import { Hero } from "../components/Hero";
 import { ListingGrid } from "../components/ListingGrid";
 import {
@@ -225,6 +226,7 @@ export function BoardPage() {
                 ) : null}
               </div>
             </div>
+            <ActivityPanel />
           </div>
         ) : (
           <>
@@ -249,6 +251,7 @@ export function BoardPage() {
               <EmptyCategory label={CATEGORY_LABEL[category]} />
             ) : null}
             {load.status === "ready" && listings.length === 0 && !category ? <EmptySoon /> : null}
+            <ActivityPanel />
           </>
         )}
       </div>

@@ -111,6 +111,16 @@ def test_native_ranks_above_scouted_and_external_is_a_message(client):
     assert "seller_min" not in blob
 
 
+def test_same_buyer_bot_text_returns_the_existing_want(client):
+    sign_in(client)
+    first = client.post("/api/wants", json={"text": "Road bike under $400 in SF", "category": "bikes"})
+    second = client.post("/api/wants", json={"text": "  road bike under $400 in sf  ", "category": "bikes"})
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["id"] == first.json()["id"]
+    assert second.json()["access_token"] != first.json()["access_token"]
+
+
 def test_background_tick_is_idempotent(client):
     sign_in(client)
     created = client.post(

@@ -79,6 +79,13 @@ def list_listings(category: str | None, q: str | None, kind: str | None = None) 
         query += " AND origin = 'scout'"
     elif kind == "sample":
         query += " AND origin = 'seed'"
+    else:
+        # Demo rows stay in the database for tests. The public feed drops them
+        # once a real listing (native or scouted) is stored.
+        query += (
+            " AND (origin != 'seed' OR NOT EXISTS ("
+            "SELECT 1 FROM listings AS live WHERE live.origin != 'seed'))"
+        )
     query += (
         " ORDER BY CASE origin WHEN 'lister' THEN 0 WHEN 'seed' THEN 1 ELSE 2 END,"
         " posted_at DESC"
@@ -128,6 +135,12 @@ def insert_listing(
     user_id: str | None = None,
 ) -> None:
     with connect() as conn:
+        existing = conn.execute(
+            "SELECT 1 FROM listings WHERE id = ?",
+            (listing.id,),
+        ).fetchone()
+        if existing is not None:
+            return
         conn.execute(
             """
             INSERT INTO listings (
@@ -601,12 +614,18 @@ def list_recommendations(want_id: str) -> list[RecommendationRow]:
 def secret_numbers() -> set[int]:
     with connect() as conn:
         rows = conn.execute("SELECT buyer_max, seller_min FROM price_limits").fetchall()
+        extra = conn.execute("SELECT buyer_ceiling, seller_floor FROM thread_limits").fetchall()
     numbers: set[int] = set()
     for row in rows:
         if row["buyer_max"] is not None:
             numbers.add(int(row["buyer_max"]))
         if row["seller_min"] is not None:
             numbers.add(int(row["seller_min"]))
+    for row in extra:
+        if row["buyer_ceiling"] is not None:
+            numbers.add(int(row["buyer_ceiling"]))
+        if row["seller_floor"] is not None:
+            numbers.add(int(row["seller_floor"]))
     return numbers
 
 
@@ -742,6 +761,31 @@ class NotificationRow:
     unread: bool
 
 
+def find_open_want(user_id: str, text: str) -> str | None:
+    needle = " ".join(text.lower().split())
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, text FROM wants
+            WHERE user_id = ? AND status != 'done'
+            ORDER BY created_at ASC
+            """,
+            (user_id,),
+        ).fetchall()
+    for row in rows:
+        if " ".join(str(row["text"]).lower().split()) == needle:
+            return str(row["id"])
+    return None
+
+
+def replace_want_token(want_id: str, token_hash: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE want_access SET token_hash = ? WHERE want_id = ?",
+            (token_hash, want_id),
+        )
+
+
 def add_notification(
     notification_id: str,
     user_id: str,
@@ -751,6 +795,16 @@ def add_notification(
     href: str | None,
 ) -> None:
     with connect() as conn:
+        duplicate = conn.execute(
+            """
+            SELECT 1 FROM notifications
+            WHERE user_id = ? AND kind = ? AND message = ?
+              AND IFNULL(href, '') = IFNULL(?, '') AND read_at IS NULL
+            """,
+            (user_id, kind, message, href),
+        ).fetchone()
+        if duplicate is not None:
+            return
         conn.execute(
             """
             INSERT INTO notifications (id, user_id, created_at, kind, message, href, read_at)

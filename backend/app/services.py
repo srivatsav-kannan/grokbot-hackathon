@@ -30,7 +30,7 @@ from backend.app.agents.inspector import inspect
 from backend.app.agents.lister import draft_from_photo
 from backend.app.agents.llm import complete, message_effort, message_model, parse_json_reply
 from backend.app.agents.negotiator import negotiate
-from backend.app.agents.scout import ScoutStopped, scout_run
+from backend.app.agents.scout import ScoutStopped, scout_query, scout_run
 from backend.app.errors import APIError
 from backend.app.repository import Limits, ListingRecord
 from backend.app.schemas import (
@@ -302,25 +302,14 @@ def get_negotiation(negotiation_id: str) -> Negotiation:
     return item
 
 
-def run_scout(categories: list[str]) -> ScoutRunResponse:
-    for category in categories:
-        _require_category(category)
-    try:
-        result = scout_run(categories)
-    except ScoutStopped as exc:
-        _note(f"Scout stopped: {exc.reason}")
-        return ScoutRunResponse(
-            added=0,
-            cached=repo.count_listings(),
-            stopped=True,
-            report=ScoutReport(reason=exc.reason, message=exc.message),  # type: ignore[arg-type]
-        )
+def _ingest_scouted(listings: list[ListingRecord]) -> int:
+    """Store new public listings once. The same source id is skipped, not duplicated."""
+
     added = 0
     added_listings: list[ListingRecord] = []
-    for listing in result.listings:
+    for listing in listings:
         existing = repo.get_listing(listing.id)
         if existing is not None:
-            # Appraisals stay cached unless the asking price actually changed.
             if listing.price < existing.price:
                 repo.set_listing_price(listing.id, listing.price)
                 refreshed = replace(existing, price=listing.price)
@@ -329,12 +318,11 @@ def run_scout(categories: list[str]) -> ScoutRunResponse:
                 repo.replace_vetting(listing.id, appraisal, inspection)
                 _notify_price_drop(existing, listing.price)
             continue
-        # Appraise and inspect first. insert_listing writes the listing, appraisal,
-        # inspection, and limits in one transaction, so GET /api/listings never sees
-        # a scouted row without its badges.
         appraisal = appraise(listing)
         inspection = inspect(listing, appraisal)
         repo.insert_listing(listing, appraisal, inspection, limits_for_asking_price(listing.price))
+        if repo.get_listing(listing.id) is None:
+            continue
         added += 1
         added_listings.append(listing)
         if inspection.signals:
@@ -346,8 +334,25 @@ def run_scout(categories: list[str]) -> ScoutRunResponse:
             counts[(listing.category, source_name_for(listing.origin, listing.source_url))] += 1
         for (category, label), count in counts.items():
             _note(f"Scout found {count} new {category} on {label}")
+    return added
+
+
+def run_scout(categories: list[str]) -> ScoutRunResponse:
+    for category in categories:
+        _require_category(category)
+    try:
+        result = scout_run(categories)
+    except ScoutStopped as exc:
+        _note(f"Scout stopped: {exc.reason}. {exc.message}")
+        return ScoutRunResponse(
+            added=0,
+            cached=repo.count_listings(),
+            stopped=True,
+            report=ScoutReport(reason=exc.reason, message=exc.message),  # type: ignore[arg-type]
+        )
+    added = _ingest_scouted(list(result.listings))
     if result.stopped and result.report is not None:
-        _note(f"Scout stopped: {result.report.reason}")
+        _note(f"Scout stopped: {result.report.reason}. {result.report.message}")
     return ScoutRunResponse(
         added=added,
         cached=repo.count_listings(),
@@ -557,6 +562,12 @@ def create_want(
         keywords=parsed.keywords,
     )
     token = "tok_" + secrets.token_urlsafe(24)
+    existing_id = repo.find_open_want(user_id, raw)
+    if existing_id is not None:
+        repo.replace_want_token(existing_id, _hash_token(token))
+        record = repo.get_want(existing_id)
+        status = record.status if record is not None else "open"
+        return WantCreated(id=existing_id, access_token=token, status=status)  # type: ignore[arg-type]
     want_id = _new_id("wnt_")
     repo.insert_want(
         want_id=want_id,
@@ -860,13 +871,21 @@ def search_board(q: str | None, category: str | None) -> SearchResponse:
     parsed = parse_want(text)
     chosen = category or parsed.category
     _require_category(chosen)
-    categories = [chosen] if chosen else list(CATEGORIES)
+    added = 0
     try:
-        outcome = run_scout(categories)
-        added = outcome.added
+        found = scout_query(text, chosen)
+        added = _ingest_scouted(list(found))
+    except ScoutStopped as exc:
+        _note(f"Scout stopped: {exc.reason}. {exc.message}")
     except Exception:
         log.exception("search scout failed")
-        added = 0
+    if added == 0:
+        categories = [chosen] if chosen else list(CATEGORIES)
+        try:
+            outcome = run_scout(categories)
+            added = outcome.added
+        except Exception:
+            log.exception("search scout failed")
     rows = repo.list_listings(category, text or None, None)
     if not rows and parsed.keywords:
         for word in parsed.keywords:

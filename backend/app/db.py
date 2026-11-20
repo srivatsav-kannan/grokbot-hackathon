@@ -118,6 +118,35 @@ CREATE TABLE IF NOT EXISTS notifications (
     read_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS threads (
+    id TEXT PRIMARY KEY,
+    listing_id TEXT NOT NULL,
+    buyer_id TEXT NOT NULL,
+    want_id TEXT,
+    buyer_mode TEXT NOT NULL,
+    seller_mode TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (listing_id, buyer_id)
+);
+
+CREATE TABLE IF NOT EXISTS thread_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id TEXT NOT NULL,
+    at TEXT NOT NULL,
+    author TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    amount INTEGER,
+    body TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS thread_limits (
+    thread_id TEXT PRIMARY KEY,
+    buyer_ceiling INTEGER,
+    seller_floor INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS recommendations (
     want_id TEXT NOT NULL,
     listing_id TEXT NOT NULL,

@@ -68,11 +68,17 @@ class ListingCard(BaseModel):
     inspection: InspectionSummary
 
 
+class Outreach(BaseModel):
+    amount: int
+    message: str
+
+
 class ListingDetail(ListingCard):
     description: str
     source_url: str | None
     appraisal: Appraisal
     inspection: Inspection
+    outreach: Outreach | None = None
 
 
 class ListingListResponse(BaseModel):
@@ -278,6 +284,87 @@ class MarkReadRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     ids: list[str] | None = None
+
+
+class OpenThreadRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    listing_id: str
+    intent: Literal["offer", "message", "bot"]
+    text: str | None = None
+    amount: int | None = Field(default=None, ge=0)
+    limit: int | None = Field(default=None, ge=0)
+
+
+class ThreadMessageRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    text: str = ""
+    amount: int | None = Field(default=None, ge=0)
+    kind: Literal["text", "offer", "counter", "accept", "decline"] = "text"
+
+
+class ThreadModeRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    mode: Literal["manual", "bot"]
+
+
+class ThreadLimitRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    limit: int = Field(ge=0)
+
+
+class ThreadMessagePublic(BaseModel):
+    at: str
+    author: Literal["buyer", "buyer_bot", "seller", "seller_bot"]
+    kind: Literal["text", "offer", "counter", "accept", "decline"]
+    amount: int | None
+    text: str
+
+
+class ThreadView(BaseModel):
+    id: str
+    listing_id: str
+    listing_title: str
+    listing_price: int
+    origin: Origin
+    role: Literal["buyer", "seller"]
+    want_id: str | None = None
+    want_label: str | None = None
+    buyer_mode: Literal["manual", "bot"]
+    seller_mode: Literal["manual", "bot"]
+    status: Literal["open", "deal", "declined"]
+    summary: str
+    messages: list[ThreadMessagePublic]
+    my_limit: int | None = None
+
+
+class ThreadSummary(BaseModel):
+    id: str
+    listing_id: str
+    title: str
+    summary: str
+    updated_at: str
+
+
+class BuyerBotInbox(BaseModel):
+    id: str
+    label: str
+    threads: list[ThreadSummary]
+
+
+class ListingInbox(BaseModel):
+    listing_id: str
+    title: str
+    threads: list[ThreadSummary]
+
+
+class DealsResponse(BaseModel):
+    buyer_bots: list[BuyerBotInbox]
+    direct: list[ThreadSummary]
+    listings: list[ListingInbox]
 
 
 class ErrorBody(BaseModel):
