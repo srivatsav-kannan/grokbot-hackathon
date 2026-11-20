@@ -18,6 +18,7 @@ from backend.app.repository import (
     list_want_ids_for_user,
 )
 from backend.app.schemas import (
+    CompletedDeal,
     DealsResponse,
     BuyerBotInbox,
     ListingInbox,
@@ -80,15 +81,19 @@ def _complete(thread_id: str, listing_id: str, price: int) -> None:
     seller = get_listing_owner(listing_id)
     if not buyer:
         return
-    with connect() as conn:
-        conn.execute(
-            """
-            INSERT INTO completions (id, listing_id, buyer_id, seller_id, thread_id, price, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (_new("cmp_"), listing_id, buyer, seller, thread_id, int(price), _now()),
-        )
-        conn.execute("UPDATE listings SET status = 'sold' WHERE id = ?", (listing_id,))
+    try:
+        with connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO completions (id, listing_id, buyer_id, seller_id, thread_id, price, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (_new("cmp_"), listing_id, buyer, seller, thread_id, int(price), _now()),
+            )
+            conn.execute("UPDATE listings SET status = 'sold' WHERE id = ?", (listing_id,))
+    except Exception:  # noqa: BLE001 - a second accept loses the unique race. One record stays.
+        if not _is_sold(listing_id):
+            raise
     _set_status(thread_id, "deal")
 
 
@@ -177,6 +182,22 @@ def open_thread(
     listing = _require_listing(listing_id)
     if listing.origin == "scout":
         raise APIError(400, "bad_request", "This listing is on another site. Copy the suggested message instead.")
+    if get_listing_owner(listing_id) == user_id:
+        raise APIError(400, "bad_request", "This is your listing. Offers on it show up in Deals.")
+    with connect() as conn:
+        existing = conn.execute(
+            "SELECT id FROM threads WHERE listing_id = ? AND buyer_id = ?", (listing_id, user_id)
+        ).fetchone()
+    if existing is not None and _message_count(str(existing["id"])):
+        # One thread per listing and buyer. Opening again just returns it.
+        thread_id = str(existing["id"])
+        if limit is not None:
+            with connect() as conn:
+                conn.execute("UPDATE thread_limits SET buyer_ceiling = ? WHERE thread_id = ?", (limit, thread_id))
+        _save_key(user_id, "thread", idempotency_key, thread_id)
+        return _view(thread_id, user_id)
+    if _is_sold(listing_id):
+        raise APIError(400, "bad_request", "This listing is already sold.")
     limits = get_limits(listing_id)
     floor = limits.seller_min if limits is not None else max(1, listing.price // 2)
     ceiling = limit if limit is not None else listing.price
@@ -217,9 +238,11 @@ def post_message(
         return _view(prior, user_id)
     role = _role(thread_id, user_id)
     listing = _require_listing(_listing_id(thread_id))
-    if kind == "accept" and _is_sold(listing.id):
+    if _thread_status(thread_id) == "deal" or (kind == "accept" and _is_sold(listing.id)):
         _save_key(user_id, "message", idempotency_key, thread_id)
         return _view(thread_id, user_id)
+    if kind == "accept" and _last_amount(thread_id) is None and amount is None:
+        raise APIError(400, "bad_request", "There is no offer to accept yet.")
     author = "buyer" if role == "buyer" else "seller"
     body = text.strip() or ("Here is my number." if amount is not None else "Okay.")
     _append(thread_id, [(author, kind, amount, body, _now())])
@@ -300,16 +323,54 @@ def inbox(user_id: str) -> DealsResponse:
                 ListingInbox(listing_id=row["listing_id"], title=row["title"], threads=[]),
             )
             box.threads.append(summary)
+    from backend.app.services import _want_view
+
+    ordered: list[BuyerBotInbox] = []
     for want_id in list_want_ids_for_user(user_id):
-        if want_id in bots:
-            continue
         record = get_want(want_id)
-        bots[want_id] = BuyerBotInbox(
+        bucket = bots.pop(want_id, None) or BuyerBotInbox(
             id=want_id,
             label=record.text if record is not None else "Buyer bot",
             threads=[],
         )
-    return DealsResponse(buyer_bots=list(bots.values()), direct=direct, listings=list(listings.values()))
+        if record is not None:
+            bucket.status = record.status
+            bucket.created_at = record.created_at
+            try:
+                bucket.matches = _want_view(want_id).matches
+            except APIError:
+                bucket.matches = []
+        ordered.append(bucket)
+    ordered.extend(bots.values())
+    ordered.sort(key=lambda bot: bot.created_at or "", reverse=True)
+    with connect() as conn:
+        done = conn.execute(
+            """
+            SELECT completions.*, listings.title FROM completions
+            JOIN listings ON listings.id = completions.listing_id
+            WHERE completions.buyer_id = ? OR completions.seller_id = ?
+            ORDER BY completions.created_at DESC
+            """,
+            (user_id, user_id),
+        ).fetchall()
+    completed = [
+        CompletedDeal(
+            id=str(row["id"]),
+            listing_id=str(row["listing_id"]),
+            title=str(row["title"]),
+            price=int(row["price"]),
+            role="buyer" if row["buyer_id"] == user_id else "seller",
+            thread_id=row["thread_id"],
+            at=str(row["created_at"]),
+        )
+        for row in done
+    ]
+    return DealsResponse(
+        buyer_bots=ordered,
+        direct=direct,
+        listings=list(listings.values()),
+        completed=completed,
+    )
 
 
 def _require_listing(listing_id: str) -> ListingRecord:
@@ -379,6 +440,12 @@ def _message_count(thread_id: str) -> int:
             (thread_id,),
         ).fetchone()
     return int(row["n"])
+
+
+def _thread_status(thread_id: str) -> str:
+    with connect() as conn:
+        row = conn.execute("SELECT status FROM threads WHERE id = ?", (thread_id,)).fetchone()
+    return "" if row is None else str(row["status"])
 
 
 def _set_status(thread_id: str, status: str) -> None:

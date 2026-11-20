@@ -354,6 +354,19 @@ class BuyerBotInbox(BaseModel):
     id: str
     label: str
     threads: list[ThreadSummary]
+    status: str = "watching"
+    created_at: str | None = None
+    matches: list[WantMatchPublic] = Field(default_factory=list)
+
+
+class CompletedDeal(BaseModel):
+    id: str
+    listing_id: str
+    title: str
+    price: int
+    role: Literal["buyer", "seller"]
+    thread_id: str | None
+    at: str
 
 
 class ListingInbox(BaseModel):
@@ -366,6 +379,7 @@ class DealsResponse(BaseModel):
     buyer_bots: list[BuyerBotInbox]
     direct: list[ThreadSummary]
     listings: list[ListingInbox]
+    completed: list[CompletedDeal] = Field(default_factory=list)
 
 
 class ErrorBody(BaseModel):
