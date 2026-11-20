@@ -1,0 +1,35 @@
+{
+  "findItemsAdvancedResponse": [
+    {
+      "ack": ["Success"],
+      "searchResult": [
+        {
+          "@count": "2",
+          "item": [
+            {
+              "itemId": ["555555555555"],
+              "title": ["Laptop from a neighbor"],
+              "viewItemURL": ["https://www.ebay.com/itm/555555555555?hash=1"],
+              "galleryURL": ["https://i.ebayimg.com/images/g/laptop/s-l225.jpg"],
+              "location": ["San Jose, CA"],
+              "sellingStatus": [
+                {"currentPrice": [{"@currencyId": "USD", "__value__": "640.00"}]}
+              ],
+              "listingInfo": [{"startTime": ["2026-11-01T15:04:00.000Z"]}]
+            },
+            {
+              "itemId": ["666666666666"],
+              "title": ["Desktop in Texas"],
+              "viewItemURL": ["https://www.ebay.com/itm/666666666666"],
+              "galleryURL": ["https://i.ebayimg.com/images/g/desk/s-l225.jpg"],
+              "location": ["Austin, TX"],
+              "sellingStatus": [
+                {"currentPrice": [{"@currencyId": "USD", "__value__": "300.00"}]}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
