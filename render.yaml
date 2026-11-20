@@ -12,6 +12,8 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     envVars:
+      - key: DATABASE_URL
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL

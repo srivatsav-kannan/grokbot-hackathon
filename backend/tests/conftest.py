@@ -17,6 +17,7 @@ def sign_in(client, email="ada@fairlot.test", password="fairlot-demo-pass"):
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "fairlot.db"))
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("FAIRLOT_BACKGROUND", "0")
     from backend.app.main import app

@@ -799,7 +799,7 @@ def add_notification(
             """
             SELECT 1 FROM notifications
             WHERE user_id = ? AND kind = ? AND message = ?
-              AND IFNULL(href, '') = IFNULL(?, '') AND read_at IS NULL
+              AND COALESCE(href, '') = COALESCE(?, '') AND read_at IS NULL
             """,
             (user_id, kind, message, href),
         ).fetchone()
