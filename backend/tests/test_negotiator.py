@@ -46,8 +46,16 @@ def test_deal_converges_inside_the_overlap_without_naming_limits(monkeypatch):
     assert draft.messages[0].from_ == "buyer"
     assert draft.messages[-1].kind == "accept"
     amounts = [message.amount for message in draft.messages]
-    assert all(amount is not None and 300 < amount < 500 for amount in amounts)
-    assert amounts == sorted(amounts)
+    assert all(amount is not None for amount in amounts)
+    buyer = [m.amount for m in draft.messages if m.from_ == "buyer" and m.kind == "offer"]
+    seller = [m.amount for m in draft.messages if m.from_ == "seller" and m.kind == "counter"]
+    # Several rounds: the buyer opens low and climbs, the seller comes down.
+    assert len(buyer) >= 2 and len(seller) >= 1
+    assert buyer == sorted(buyer)
+    assert seller == sorted(seller, reverse=True)
+    assert all(amount <= listing.price for amount in buyer)
+    assert all(300 < amount <= listing.price for amount in seller)
+    assert 300 < draft.messages[-1].amount < 500
     blob = _blob(draft)
     assert "500" not in prompts[0]
     assert "300" not in prompts[0]
@@ -55,6 +63,20 @@ def test_deal_converges_inside_the_overlap_without_naming_limits(monkeypatch):
     assert "seller_min" not in prompts[0]
     for secret in ("500", "300", "buyer_max", "seller_min"):
         assert not re.search(rf"(?<!\d){secret}(?!\d)", blob)
+
+
+def test_rounds_stay_inside_each_side_bound(monkeypatch):
+    monkeypatch.setattr("backend.app.agents.negotiator.complete", lambda *_args, **_kwargs: None)
+    for price, buyer_max, seller_min in ((620, 700, 400), (900, 650, 500), (280, 307, 241)):
+        draft = negotiate(_listing(price=price), buyer_max, seller_min)
+        assert draft.outcome == "deal"
+        for message in draft.messages:
+            if message.from_ == "buyer" and message.amount is not None:
+                assert message.amount < buyer_max
+            if message.from_ == "seller" and message.kind == "counter":
+                assert message.amount > seller_min
+        assert seller_min < draft.messages[-1].amount < buyer_max
+        assert sum(1 for m in draft.messages if m.kind == "offer") >= 2
 
 
 def test_no_overlap_ends_without_a_deal(monkeypatch):
@@ -83,20 +105,15 @@ def test_model_phrases_are_used_only_when_they_hide_the_limits(monkeypatch):
     assert "My max" not in blob
 
     def safe(prompt, *, image=None, timeout_s=8.0):
-        return json.dumps(
-            {
-                "messages": [
-                    "I can pick it up for that.",
-                    "Meet me at the public offer.",
-                    "Yes, pickup tomorrow.",
-                ]
-            }
-        )
+        count = len(re.findall(r"(?m)^\d+\. ", prompt))
+        lines = ["I can pick it up for that."] + ["Meet me at the public offer."] * (count - 1)
+        return json.dumps({"messages": lines})
 
     monkeypatch.setattr("backend.app.agents.negotiator.complete", safe)
     agreed = negotiate(_listing(price=360), 500, 300)
+    assert agreed.outcome == "deal"
     assert agreed.messages[0].text == "I can pick it up for that."
-    assert all(300 < message.amount < 500 for message in agreed.messages)
+    assert 300 < agreed.messages[-1].amount < 500
 
 
 def test_seed_transcripts_omit_stored_limits(client, monkeypatch):

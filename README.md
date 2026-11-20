@@ -20,6 +20,7 @@ Classic classifieds make you refresh, squint at photos, and message strangers on
 - **Browse a pre-vetted feed.** Every listing shows a price verdict (Good deal / Fair / Overpriced) and a trust badge (High / Medium / Low) before anyone opens a chat. Scout, Appraiser, and Inspector run once for everyone, not per user.
 - **Sell from a photo.** Lister drafts the title, description, category, and suggested price. After publish, the new listing is already appraised and inspected. A seller agent negotiates inside that seller's private minimum.
 - **Say the want, then hunt or target.** Type it on the Board, or tell your own Grok Bot. `POST /api/wants` stores a private max parsed from the text. Hunt matches listings and opens negotiations; target points the buyer agent at one listing. Buyer and seller agents haggle inside server-only limits.
+- **Multi-round haggling.** The buyer agent opens low and concedes in shrinking steps over up to 6 rounds; the seller counters down from the asking price. Code clamps every offer to the buyer's private max and the seller's private min (`min_price` on publish, `max_price` or a budget in the want text), so a deal always lands between them and neither number is ever shown.
 - **Grok Bot is a client, not the negotiator.** It calls the wants API (create, read, hunt, target) with a bearer token. Limits never leave the server, never reach the other side, and never reach the bot.
 - **Live Scout.** With `SCOUT_LIVE=1`, Scout reads public Craigslist SF Bay search pages for bikes, computers, and furniture and adds them to the feed.
 

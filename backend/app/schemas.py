@@ -98,6 +98,8 @@ class PublishListingRequest(BaseModel):
     price: int = Field(ge=0)
     photos: list[str] = Field(min_length=1)
     neighborhood: str = Field(min_length=1)
+    # Lowest price the seller will take. Stored server-side, never returned.
+    min_price: int | None = Field(default=None, ge=0)
 
 
 class NegotiationMessage(BaseModel):

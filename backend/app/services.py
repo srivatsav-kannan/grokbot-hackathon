@@ -45,6 +45,11 @@ from backend.app.schemas import (
 )
 
 
+# Hunt opens negotiations on listings asking up to this multiple of the buyer's
+# ceiling. The negotiator still never offers more than the ceiling itself.
+HUNT_STRETCH = 1.25
+
+
 def _now_iso() -> str:
     from datetime import datetime, timezone
 
@@ -59,14 +64,19 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def limits_for_asking_price(price: int) -> Limits:
+def limits_for_asking_price(price: int, min_price: int | None = None) -> Limits:
     """Server-side policy for a listing a person just published. Not returned.
 
     The numbers are a seller floor and a fallback buyer ceiling for the
     on-site negotiate endpoint. A want uses its own stored ceiling instead.
+    A seller-supplied minimum wins over the default floor, capped at the
+    asking price.
     """
 
-    seller_min = max(1, int(round(price * 0.75)))
+    if min_price is not None:
+        seller_min = max(1, min(int(min_price), price - 1))
+    else:
+        seller_min = max(1, int(round(price * 0.75)))
     buyer_max = max(seller_min, int(round(price * 0.95)))
     return Limits(buyer_max=buyer_max, seller_min=seller_min)
 
@@ -161,7 +171,12 @@ def publish_listing(body: PublishListingRequest) -> ListingDetail:
     )
     appraisal = appraise(listing)
     inspection = inspect(listing, appraisal)
-    repo.insert_listing(listing, appraisal, inspection, limits_for_asking_price(body.price))
+    repo.insert_listing(
+        listing,
+        appraisal,
+        inspection,
+        limits_for_asking_price(body.price, body.min_price),
+    )
     return _detail(listing)
 
 
@@ -372,7 +387,9 @@ def execute_hunt(want_id: str) -> None:
         listing = repo.get_listing(match.listing_id)
         if listing is None:
             continue
-        if ceiling is not None and listing.price > ceiling:
+        # The buyer agent haggles down from the asking price, so a listing a bit
+        # over the ceiling is still worth a try. Negotiation never pays over it.
+        if ceiling is not None and listing.price > ceiling * HUNT_STRETCH:
             continue
         repo.set_want_status(want_id, "negotiating")
         _open_negotiation(want_id, listing, match.score, match.reason)
