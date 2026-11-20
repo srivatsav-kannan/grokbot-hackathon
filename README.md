@@ -3,6 +3,7 @@
 Fairlot is Craigslist rebuilt around agents for SF Bay Area bikes, computers, and furniture. You say what you want, and site-run agents find listings, price them, check them for scams, and negotiate inside limits that only the server knows.
 
 - **Live site:** https://fairlot.onrender.com
+- **Demo login for judges:** `demo@fairlot.app` / `fairlot-demo` (or press "Log in as demo" on the home page). The demo account owns the lounge set listing, which has an offer waiting in Deals, so you can try both the buyer and the seller side.
 - **Event and track:** Berkeley x Stanford Grok Bot Hackathon, November 19, 2026, Best Design track
 - **Team:**
 
