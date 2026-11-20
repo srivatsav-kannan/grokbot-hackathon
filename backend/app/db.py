@@ -407,6 +407,44 @@ def init_db() -> None:
         _add_column(conn, "negotiations", "user_id", "TEXT")
         _add_column(conn, "negotiations", "accepted", "INTEGER NOT NULL DEFAULT 0")
         count = conn.execute("SELECT COUNT(*) AS n FROM listings").fetchone()["n"]
+    _remove_qa_test_data()
     from backend.app.seed import load_seed
 
     load_seed()
+
+
+def _remove_qa_test_data() -> None:
+    """One-time cleanup of QA accounts (qa-*@example.com) and the curl test listing."""
+
+    with connect() as conn:
+        users = [r["id"] for r in conn.execute("SELECT id FROM users WHERE email LIKE 'qa-%@example.com'").fetchall()]
+        junk = [r["id"] for r in conn.execute("SELECT id FROM listings WHERE origin = 'lister' AND title = 'Curl stool'").fetchall()]
+        for uid in users:
+            junk += [r["id"] for r in conn.execute("SELECT id FROM listings WHERE user_id = ?", (uid,)).fetchall()]
+        threads = []
+        for uid in users:
+            threads += [r["id"] for r in conn.execute("SELECT id FROM threads WHERE buyer_id = ?", (uid,)).fetchall()]
+        for lid in junk:
+            threads += [r["id"] for r in conn.execute("SELECT id FROM threads WHERE listing_id = ?", (lid,)).fetchall()]
+        for tid in set(threads):
+            conn.execute("DELETE FROM thread_messages WHERE thread_id = ?", (tid,))
+            conn.execute("DELETE FROM thread_limits WHERE thread_id = ?", (tid,))
+            conn.execute("DELETE FROM threads WHERE id = ?", (tid,))
+        for uid in users:
+            for row in conn.execute("SELECT listing_id FROM completions WHERE buyer_id = ?", (uid,)).fetchall():
+                conn.execute("UPDATE listings SET status = 'active' WHERE id = ?", (row["listing_id"],))
+            conn.execute("DELETE FROM completions WHERE buyer_id = ? OR seller_id = ?", (uid, uid))
+            wants = [r["id"] for r in conn.execute("SELECT id FROM wants WHERE user_id = ?", (uid,)).fetchall()]
+            for wid in wants:
+                for table in ("want_matches", "want_access", "recommendations", "price_limits", "negotiations"):
+                    conn.execute(f"DELETE FROM {table} WHERE want_id = ?", (wid,))
+                conn.execute("DELETE FROM wants WHERE id = ?", (wid,))
+            conn.execute("DELETE FROM negotiations WHERE user_id = ?", (uid,))
+            for table in ("notifications", "sessions", "idempotency_keys"):
+                conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (uid,))
+            conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+        for lid in junk:
+            conn.execute("DELETE FROM completions WHERE listing_id = ?", (lid,))
+            for table in ("appraisals", "inspections", "price_limits", "want_matches", "recommendations", "negotiations"):
+                conn.execute(f"DELETE FROM {table} WHERE listing_id = ?", (lid,))
+            conn.execute("DELETE FROM listings WHERE id = ?", (lid,))
