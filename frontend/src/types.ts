@@ -49,6 +49,7 @@ export interface ListingCard {
   neighborhood: string;
   posted_at: string;
   origin: Origin;
+  source_name: string;
   appraisal: AppraisalSummary;
   inspection: InspectionSummary;
 }
@@ -82,6 +83,7 @@ export interface PublishListingRequest {
   price: number;
   photos: string[];
   neighborhood: string;
+  minimum?: number;
 }
 
 export interface NegotiationMessage {
@@ -98,6 +100,7 @@ export interface Negotiation {
   want_id: string | null;
   status: "closed";
   outcome: Outcome;
+  accepted: boolean;
   messages: NegotiationMessage[];
 }
 
@@ -119,8 +122,20 @@ export interface WantMatchPublic {
   reason: string;
   title: string;
   price: number;
+  origin: Origin;
+  source_name: string;
+  source_url: string | null;
   appraisal: AppraisalSummary;
   inspection: InspectionSummary;
+}
+
+export interface RecommendationPublic {
+  listing_id: string;
+  title: string;
+  source_name: string;
+  source_url: string | null;
+  suggested_offer: number;
+  message: string;
 }
 
 export interface WantView {
@@ -130,6 +145,52 @@ export interface WantView {
   status: WantStatus;
   matches: WantMatchPublic[];
   negotiations: Negotiation[];
+  recommendations: RecommendationPublic[];
+}
+
+export interface UserPublic {
+  id: string;
+  email: string;
+}
+
+export interface SearchResponse {
+  listings: ListingCard[];
+  scouted: boolean;
+}
+
+export interface BuyerBot {
+  id: string;
+  text: string;
+  status: WantStatus;
+  matches: WantMatchPublic[];
+  negotiations: Negotiation[];
+  recommendations: RecommendationPublic[];
+}
+
+export interface SellerBot {
+  listing_id: string;
+  title: string;
+  price: number;
+  negotiations: Negotiation[];
+}
+
+export interface BotsResponse {
+  buyers: BuyerBot[];
+  sellers: SellerBot[];
+}
+
+export interface NotificationItem {
+  id: string;
+  at: string;
+  kind: string;
+  message: string;
+  href: string | null;
+  unread: boolean;
+}
+
+export interface NotificationsResponse {
+  unread: number;
+  notifications: NotificationItem[];
 }
 
 export interface ErrorBody {

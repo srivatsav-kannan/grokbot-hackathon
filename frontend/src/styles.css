@@ -31,7 +31,6 @@ body {
   margin: 0;
   min-height: 100%;
   background: var(--paper);
-  overflow-x: clip;
 }
 
 html {
@@ -150,8 +149,16 @@ a {
   gap: 0.4rem;
 }
 
-.add-listing {
+.mast-actions {
   grid-area: add;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.add-listing {
   justify-self: end;
   width: auto;
 }
@@ -281,6 +288,7 @@ button:disabled {
 .rail {
   margin-top: 1.75rem;
   overflow: hidden;
+  max-width: 100%;
   border-block: 2px solid var(--gold);
   background: var(--paper-2);
   padding: 0.85rem 0;
@@ -292,12 +300,23 @@ button:disabled {
   gap: 1.25rem;
   width: max-content;
   padding-left: 1rem;
+  animation: fairlot-rail 42s linear infinite;
+}
+
+@keyframes fairlot-rail {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .rail-static .rail-track {
   width: auto;
   flex-wrap: wrap;
   padding-right: 1rem;
+  animation: none;
 }
 
 .rail-item {
@@ -365,6 +384,25 @@ button:disabled {
 
 .catalogue-head q {
   font-style: normal;
+}
+
+.result-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.result-tools a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1.5px solid var(--ink);
+  text-decoration: none;
+}
+
+.result-tools a[aria-current="true"] {
+  background: var(--gold-fill);
 }
 
 .sort-form {
@@ -892,12 +930,6 @@ button:disabled {
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .transcript li {
-    min-height: 34vh;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -905,6 +937,10 @@ button:disabled {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+
+  .rail-track {
+    transform: none;
   }
 }
 
@@ -1177,4 +1213,79 @@ button:disabled {
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     align-items: start;
   }
+}
+
+.mast-actions a,
+.mast-actions .text-button,
+.bell > button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  color: inherit;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.text-button {
+  background: transparent;
+}
+
+.bell {
+  position: relative;
+}
+
+.bell-count {
+  margin-left: 0.35rem;
+  background: var(--red);
+  color: var(--paper);
+  padding: 0 0.35rem;
+}
+
+.bell-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  width: min(22rem, 80vw);
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  padding: 0.75rem;
+  z-index: 30;
+}
+
+.bell-panel ul,
+.bot-list,
+.activity ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bell-panel li,
+.bot-list > li,
+.activity li {
+  border-bottom: 1px solid var(--line);
+  padding: 0.65rem 0;
+}
+
+.activity,
+.bots section {
+  margin-top: 1.5rem;
+}
+
+.agent-note,
+.activity time,
+.bell-panel time {
+  color: var(--muted);
+}
+
+.advice pre,
+.talk {
+  white-space: pre-wrap;
+  border: 1px solid var(--line);
+  padding: 0.75rem;
+  background: var(--paper-2);
 }

@@ -24,7 +24,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from backend.app.agents.llm import complete, parse_json_reply
+from backend.app.agents.llm import complete, message_effort, message_model, parse_json_reply
 from backend.app.repository import ListingRecord
 from backend.app.schemas import NegotiationMessage, Outcome
 
@@ -171,7 +171,14 @@ def _texts(
     seller_min: int,
 ) -> list[str]:
     fallback = _fallback_texts(turns, buyer_max, seller_min)
-    parsed = parse_json_reply(complete(_phrase_prompt(listing, turns)))
+    parsed = parse_json_reply(
+        complete(
+            _phrase_prompt(listing, turns),
+            model=message_model(),
+            effort=message_effort(),
+            max_tokens=800,
+        )
+    )
     if not isinstance(parsed, dict):
         return fallback
     lines = parsed.get("messages")

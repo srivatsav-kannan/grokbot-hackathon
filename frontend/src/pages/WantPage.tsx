@@ -156,13 +156,34 @@ export function WantPage() {
                   <span className="price">{formatUsd(match.price)}</span>
                   <span className="lot-title">{match.title}</span>
                   <span className="match-reason">{match.reason}</span>
-                  <Marks verdict={match.appraisal.verdict} trust={match.inspection.trust_level} />
+                  <Marks
+                    verdict={match.appraisal.verdict}
+                    trust={match.inspection.trust_level}
+                    origin={match.origin}
+                    sourceName={match.source_name}
+                  />
                 </Link>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {want.recommendations.length > 0 ? (
+        <section aria-labelledby="advice-heading">
+          <h2 id="advice-heading">Copy and send these yourself</h2>
+          <ul className="match-list">
+            {want.recommendations.map((advice) => (
+              <li key={advice.listing_id}>
+                <p>
+                  {advice.title}: suggested offer {formatUsd(advice.suggested_offer)}
+                </p>
+                <pre>{advice.message}</pre>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section aria-labelledby="outcomes-heading">
         <h2 id="outcomes-heading">Outcomes</h2>

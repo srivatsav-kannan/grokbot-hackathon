@@ -31,6 +31,7 @@ export function ListingCard({ listing, index }: { listing: Listing; index: numbe
           verdict={listing.appraisal.verdict}
           trust={listing.inspection.trust_level}
           origin={listing.origin}
+          sourceName={listing.source_name}
         />
       </Link>
     </li>

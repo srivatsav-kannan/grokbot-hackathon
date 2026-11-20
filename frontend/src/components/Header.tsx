@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import { NotificationBell } from "./NotificationBell";
+import { useAuth } from "../auth";
 import { boardHref, CATEGORIES, CATEGORY_LABEL, parseCategory, parseSort } from "../lib/format";
 
 export function Header() {
@@ -10,18 +12,11 @@ export function Header() {
   const category = parseCategory(params.get("category"));
   const sort = parseSort(params.get("sort"));
   const [draft, setDraft] = useState(q);
-  const [compact, setCompact] = useState(false);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     setDraft(q);
   }, [q]);
-
-  useEffect(() => {
-    const onScroll = () => setCompact(window.scrollY > 64);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     const node = headerRef.current;
@@ -33,7 +28,7 @@ export function Header() {
     const observer = new ResizeObserver(apply);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [compact]);
+  }, []);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,12 +40,7 @@ export function Header() {
   }
 
   return (
-    <header
-      className={compact ? "masthead masthead-compact" : "masthead"}
-      id="site-header"
-      ref={headerRef}
-      data-compact={compact ? "true" : "false"}
-    >
+    <header className="masthead" id="site-header" ref={headerRef}>
       <div className="wrap masthead-bar">
         <Link className="wordmark" to="/" aria-label="Fairlot, home">
           Fairlot
@@ -74,13 +64,26 @@ export function Header() {
             </Link>
           ))}
         </nav>
-        <NavLink id="add-listing" className="add-listing" to="/sell">
-          Add a listing
-        </NavLink>
+        <div className="mast-actions">
+          <NotificationBell />
+          {user ? (
+            <Link to="/bots">My bots</Link>
+          ) : (
+            <Link to="/login">Log in</Link>
+          )}
+          {user ? (
+            <button type="button" className="text-button" onClick={() => void logout()}>
+              Log out
+            </button>
+          ) : null}
+          <NavLink id="add-listing" className="add-listing" to="/sell">
+            Sell
+          </NavLink>
+        </div>
       </div>
       <div className="wrap">
         <form id="lot-search" className="lot-search" role="search" method="get" action="/" onSubmit={onSubmit}>
-          <label htmlFor="search-query" className={compact ? "sr-only" : undefined}>
+          <label htmlFor="search-query">
             What do you want?
           </label>
           <div className="search-row">

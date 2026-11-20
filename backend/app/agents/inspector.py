@@ -6,6 +6,7 @@ Inspector is global: it does not take a user id or a private price limit.
 
 from __future__ import annotations
 
+import os
 import re
 
 from backend.app.agents.llm import complete, parse_json_reply
@@ -104,8 +105,14 @@ def stub_inspect(listing: ListingRecord, appraisal: Appraisal) -> Inspection:
     return Inspection(trust_level=trust_level, signals=signals)  # type: ignore[arg-type]
 
 
+def inspector_model() -> str:
+    return os.environ.get("ANTHROPIC_INSPECTOR_MODEL", "").strip() or "claude-sonnet-5-5"
+
+
 def inspect(listing: ListingRecord, appraisal: Appraisal) -> Inspection:
-    parsed = parse_json_reply(complete(_inspection_prompt(listing, appraisal)))
+    parsed = parse_json_reply(
+        complete(_inspection_prompt(listing, appraisal), model=inspector_model())
+    )
     if not isinstance(parsed, dict) or not isinstance(parsed.get("signals"), list):
         return stub_inspect(listing, appraisal)
     signals = _merge_signals(listing, appraisal, parsed.get("signals"))

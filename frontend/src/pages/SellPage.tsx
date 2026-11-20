@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError, createDraft, publishListing } from "../api/client";
-import { CATEGORIES, CATEGORY_LABEL } from "../lib/format";
+import { useAuth } from "../auth";
+import { CATEGORIES, CATEGORY_LABEL, loginPath } from "../lib/format";
 import { useTitle } from "../lib/title";
 import type { Category, Draft } from "../types";
 
@@ -36,7 +37,9 @@ export function SellPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [minimum, setMinimum] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
+  const { user, loading } = useAuth();
   const [phase, setPhase] = useState<"idle" | "drafting" | "publishing">("idle");
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -113,6 +116,7 @@ export function SellPage() {
     setError("");
     try {
       const photoUrl = await fileToDataUrl(file);
+      const floor = minimum.trim() === "" ? undefined : Number.parseInt(minimum, 10);
       const listing = await publishListing({
         category,
         title: title.trim(),
@@ -120,6 +124,7 @@ export function SellPage() {
         price: amount,
         photos: [photoUrl],
         neighborhood: neighborhood.trim(),
+        minimum: floor != null && Number.isFinite(floor) ? floor : undefined,
       });
       navigate(`/listings/${listing.id}`);
     } catch (err) {
@@ -128,9 +133,29 @@ export function SellPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="wrap board">
+        <p>Loading…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="wrap board sell">
+        <h1>Sell from a photo</h1>
+        <p>Log in first. The lister drafts the listing, and your seller bot will not go below the private minimum you set.</p>
+        <Link className="button-primary" to={loginPath("/sell")}>
+          Log in to sell
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="wrap board sell">
-      <h1>Add a listing</h1>
+      <h1>Sell from a photo</h1>
       <div className="sell-layout">
       <form id="sell-photo-form" onSubmit={onDraft}>
         <label
@@ -222,6 +247,20 @@ export function SellPage() {
               required
             />
           </label>
+          <label htmlFor="sell-minimum">
+            Private minimum in dollars
+            <input
+              id="sell-minimum"
+              name="minimum"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              value={minimum}
+              onChange={(event) => setMinimum(event.target.value)}
+            />
+          </label>
+          <p className="agent-note">The seller bot will not go below this. It is not shown on the listing.</p>
           <label htmlFor="sell-neighborhood">
             Neighborhood
             <input

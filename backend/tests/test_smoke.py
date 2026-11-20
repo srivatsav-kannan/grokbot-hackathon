@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from backend.tests.conftest import sign_in
+
 PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
     b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
@@ -44,6 +46,7 @@ def test_feed_detail_and_badges(client):
 
 
 def test_lister_publish_negotiate_and_scout(client):
+    sign_in(client)
     drafted = client.post(
         "/api/lister",
         files={"photo": ("desk.jpg", PNG, "image/png")},
@@ -67,15 +70,26 @@ def test_lister_publish_negotiate_and_scout(client):
     assert published.status_code == 201
     listing = published.json()
     assert listing["origin"] == "lister"
+    assert listing["source_name"] == "Fairlot"
+    assert "minimum" not in listing
     assert listing["appraisal"]["verdict"] in {"good_deal", "fair", "overpriced"}
 
     photo = client.get("/placeholders/bike.svg")
     assert photo.status_code == 200
 
+    client.cookies.clear()
+    locked = client.post("/api/negotiations", json={"listing_id": "lst_01"})
+    assert locked.status_code == 401
+    sign_in(client, email="buyer@fairlot.test")
+
     deal = client.post("/api/negotiations", json={"listing_id": "lst_01"})
     assert deal.status_code == 201
     assert deal.json()["outcome"] == "deal"
+    assert deal.json()["accepted"] is False
     assert deal.json()["messages"][0]["from"] == "buyer"
+    accepted = client.post(f"/api/negotiations/{deal.json()['id']}/accept")
+    assert accepted.status_code == 200
+    assert accepted.json()["accepted"] is True
 
     no_deal = client.post("/api/negotiations", json={"listing_id": "lst_03"})
     assert no_deal.status_code == 201
@@ -94,6 +108,7 @@ def test_lister_publish_negotiate_and_scout(client):
 
 
 def test_want_hunt_and_target(client):
+    sign_in(client)
     created = client.post(
         "/api/wants",
         json={"text": "road bike under $400 in SF", "category": "bikes", "area": "San Francisco"},

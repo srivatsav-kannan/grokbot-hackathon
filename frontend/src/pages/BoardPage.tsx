@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ApiError, createWant, huntWant, listListings } from "../api/client";
+import { ApiError, createWant, huntWant, listListings, searchListings } from "../api/client";
+import { useAuth } from "../auth";
 import { Hero } from "../components/Hero";
 import { ListingGrid } from "../components/ListingGrid";
 import {
@@ -14,12 +15,13 @@ import {
   boardHref,
   CATEGORIES,
   CATEGORY_LABEL,
+  loginPath,
   parseCategory,
   parseSort,
 } from "../lib/format";
 import { saveWant } from "../lib/session";
 import { useTitle } from "../lib/title";
-import type { Category, ListingCard, SortKey } from "../types";
+import type { ListingCard, Origin, SortKey } from "../types";
 import { Marks } from "../components/Marks";
 import { PhotoFrame } from "../components/PhotoFrame";
 import { Price } from "../components/Price";
@@ -27,18 +29,24 @@ import { mediaUrl } from "../api/client";
 
 type Load =
   | { status: "loading" }
-  | { status: "ready"; listings: ListingCard[]; related: ListingCard[] }
+  | { status: "ready"; listings: ListingCard[]; related: ListingCard[]; scouted: boolean }
   | { status: "error"; error: ApiError };
+
+function originRank(origin: Origin): number {
+  if (origin === "lister") return 0;
+  if (origin === "seed") return 1;
+  return 2;
+}
 
 function sortListings(rows: ListingCard[], sort: SortKey): ListingCard[] {
   const copy = [...rows];
-  if (sort === "price_asc") {
-    copy.sort((a, b) => a.price - b.price || b.posted_at.localeCompare(a.posted_at));
-  } else if (sort === "price_desc") {
-    copy.sort((a, b) => b.price - a.price || b.posted_at.localeCompare(a.posted_at));
-  } else {
-    copy.sort((a, b) => b.posted_at.localeCompare(a.posted_at));
-  }
+  copy.sort((a, b) => {
+    const rank = originRank(a.origin) - originRank(b.origin);
+    if (rank !== 0) return rank;
+    if (sort === "price_asc") return a.price - b.price || b.posted_at.localeCompare(a.posted_at);
+    if (sort === "price_desc") return b.price - a.price || b.posted_at.localeCompare(a.posted_at);
+    return b.posted_at.localeCompare(a.posted_at);
+  });
   return copy;
 }
 
@@ -50,7 +58,10 @@ export function BoardPage() {
   const invalidCategory = Boolean(rawCategory) && category === null;
   const q = params.get("q")?.trim() ?? "";
   const sort = parseSort(params.get("sort"));
+  const rawPlace = params.get("place");
+  const place = rawPlace === "external" || rawPlace === "fairlot" ? rawPlace : "all";
   const catalogue = q.length > 0;
+  const { user } = useAuth();
   const [attempt, setAttempt] = useState(0);
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [agentState, setAgentState] = useState<"idle" | "working" | "error">("idle");
@@ -68,18 +79,24 @@ export function BoardPage() {
     }
     const controller = new AbortController();
     setLoad({ status: "loading" });
-    const listingsRequest = listListings({ category, q, signal: controller.signal });
-    const relatedRequest = catalogue
-      ? listListings({ signal: controller.signal })
-      : Promise.resolve({ listings: [] as ListingCard[] });
-    Promise.all([listingsRequest, relatedRequest])
-      .then(([response, more]) => {
+    const listingsRequest = catalogue
+      ? searchListings(q, category, controller.signal).then((response) => ({
+          listings: response.listings,
+          scouted: response.scouted,
+        }))
+      : listListings({ category, signal: controller.signal }).then((response) => ({
+          listings: response.listings,
+          scouted: false,
+        }));
+    listingsRequest
+      .then((response) => {
         if (controller.signal.aborted) return;
-        const ids = new Set(response.listings.map((item) => item.id));
-        const pool = more.listings.filter((item) => !ids.has(item.id));
-        const sameCategory = category ? pool.filter((item) => item.category === category) : pool;
-        const related = (sameCategory.length > 0 ? sameCategory : pool).slice(0, 4);
-        setLoad({ status: "ready", listings: response.listings, related });
+        setLoad({
+          status: "ready",
+          listings: response.listings,
+          related: [],
+          scouted: response.scouted,
+        });
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
@@ -90,24 +107,31 @@ export function BoardPage() {
     return () => controller.abort();
   }, [category, q, invalidCategory, attempt]);
 
-  const listings = useMemo(
-    () => (load.status === "ready" ? sortListings(load.listings, sort) : []),
-    [load, sort],
-  );
-  const related = load.status === "ready" ? load.related : [];
+  const listings = useMemo(() => {
+    const rows = load.status === "ready" ? sortListings(load.listings, sort) : [];
+    if (place === "fairlot") return rows.filter((item) => item.origin === "lister");
+    if (place === "external") return rows.filter((item) => item.origin === "scout");
+    return rows;
+  }, [load, sort, place]);
+  const scouted = load.status === "ready" ? load.scouted : false;
 
   async function askAgent() {
     if (!q) return;
+    if (!user) {
+      sessionStorage.setItem("fairlot-pending-search", q);
+      navigate(loginPath(`/?q=${encodeURIComponent(q)}`));
+      return;
+    }
     setAgentState("working");
     setAgentMessage("");
     try {
       const created = await createWant({ text: q, category });
       saveWant(created.id, created.access_token, q);
       await huntWant(created.id, created.access_token);
-      navigate(`/wants/${created.id}`);
+      navigate("/bots");
     } catch (err) {
       setAgentState("error");
-      setAgentMessage(err instanceof ApiError ? err.message : "The buyer agent didn't start.");
+      setAgentMessage(err instanceof ApiError ? err.message : "The buyer bot didn't start.");
     }
   }
 
@@ -123,19 +147,50 @@ export function BoardPage() {
       <div className="wrap board">
         {catalogue ? (
           <div className="catalogue">
-            <FilterBar q={q} category={category} sort={sort} />
             <div className="catalogue-main">
               <header className="catalogue-head">
                 <h1>
                   Results for <q>{q}</q>
                 </h1>
+                <nav className="result-tools" aria-label="Narrow results">
+                  <Link to={boardHref({ q, sort, place })} aria-current={category ? undefined : "true"}>
+                    All
+                  </Link>
+                  {CATEGORIES.map((item) => (
+                    <Link
+                      key={item}
+                      to={boardHref({ q, category: item, sort, place })}
+                      aria-current={category === item ? "true" : undefined}
+                    >
+                      {CATEGORY_LABEL[item]}
+                    </Link>
+                  ))}
+                  <Link to={boardHref({ q, category, sort })} aria-current={place === "all" ? "true" : undefined}>
+                    Anywhere
+                  </Link>
+                  <Link
+                    to={boardHref({ q, category, sort, place: "fairlot" })}
+                    aria-current={place === "fairlot" ? "true" : undefined}
+                  >
+                    Fairlot
+                  </Link>
+                  <Link
+                    to={boardHref({ q, category, sort, place: "external" })}
+                    aria-current={place === "external" ? "true" : undefined}
+                  >
+                    Elsewhere
+                  </Link>
+                </nav>
                 {load.status === "ready" ? (
                   <p className="count" aria-live="polite">
                     {listings.length === 1 ? "1 listing" : `${listings.length} listings`}
+                    {scouted ? " · Scout just checked public listings" : ""}
                   </p>
                 ) : null}
               </header>
-              {load.status === "loading" ? <LoadingGrid label="Loading results" /> : null}
+              {load.status === "loading" ? (
+                <LoadingGrid label={q ? "Searching, and asking Scout if the board is empty" : "Loading results"} />
+              ) : null}
               {load.status === "error" ? (
                 <ErrorNotice
                   title="The search didn't go through"
@@ -145,7 +200,7 @@ export function BoardPage() {
               ) : null}
               {load.status === "ready" && listings.length > 0 ? (
                 <ul className="catalogue-rows" id="listing-grid">
-                  {listings.map((listing) => (
+                  {listings.slice(0, 6).map((listing) => (
                     <CatalogueRow key={listing.id} listing={listing} />
                   ))}
                 </ul>
@@ -153,16 +208,13 @@ export function BoardPage() {
               {load.status === "ready" && listings.length === 0 ? (
                 <EmptySearch query={q} category={category ? CATEGORY_LABEL[category] : undefined} />
               ) : null}
-              {related.length > 0 ? (
-                <section className="related" aria-labelledby="also-heading">
-                  <h2 id="also-heading">Also on the board</h2>
-                  <ListingGrid listings={related} />
-                </section>
-              ) : null}
               <div className="agent-row">
                 <button type="button" data-action="hunt" onClick={askAgent} disabled={agentState === "working"}>
-                  {agentState === "working" ? "The buyer agent is negotiating…" : "Have the buyer agent negotiate"}
+                  {agentState === "working" ? "Sending the buyer bot…" : "Send a buyer bot"}
                 </button>
+                <p className="agent-note">
+                  It keeps searching, watches for price drops, and negotiates with Fairlot sellers.
+                </p>
                 <Link className="back-link" to={boardHref({})}>
                   Clear the search
                 </Link>
@@ -204,55 +256,6 @@ export function BoardPage() {
   );
 }
 
-function FilterBar({
-  q,
-  category,
-  sort,
-}: {
-  q: string;
-  category: Category | null;
-  sort: SortKey;
-}) {
-  const navigate = useNavigate();
-  return (
-    <aside className="catalogue-side" aria-label="Filter results">
-      <h2>Category</h2>
-      <nav className="cats cats-stack" aria-label="Filter by category">
-        <Link to={boardHref({ q, sort })} aria-current={category ? undefined : "true"}>
-          All
-        </Link>
-        {CATEGORIES.map((item) => (
-          <Link
-            key={item}
-            to={boardHref({ q, category: item, sort })}
-            aria-current={category === item ? "true" : undefined}
-          >
-            {CATEGORY_LABEL[item]}
-          </Link>
-        ))}
-      </nav>
-      <form id="catalogue-sort" className="sort-form" method="get" action="/">
-        <input type="hidden" name="q" value={q} />
-        {category ? <input type="hidden" name="category" value={category} /> : null}
-        <label htmlFor="sort">Sort</label>
-        <select
-          id="sort"
-          name="sort"
-          value={sort}
-          onChange={(event) => {
-            navigate(boardHref({ q, category, sort: event.target.value }));
-          }}
-        >
-          <option value="newest">Newest</option>
-          <option value="price_asc">Price, low to high</option>
-          <option value="price_desc">Price, high to low</option>
-        </select>
-        <button type="submit">Apply</button>
-      </form>
-    </aside>
-  );
-}
-
 function CatalogueRow({ listing }: { listing: ListingCard }) {
   const photo = listing.photos[0] ? mediaUrl(listing.photos[0]) : "";
   return (
@@ -277,6 +280,7 @@ function CatalogueRow({ listing }: { listing: ListingCard }) {
             verdict={listing.appraisal.verdict}
             trust={listing.inspection.trust_level}
             origin={listing.origin}
+            sourceName={listing.source_name}
           />
         </div>
       </Link>

@@ -34,7 +34,7 @@ def _blob(draft) -> str:
 def test_deal_converges_inside_the_overlap_without_naming_limits(monkeypatch):
     prompts: list[str] = []
 
-    def capture(prompt, *, image=None, timeout_s=8.0):
+    def capture(prompt, *, image=None, timeout_s=8.0, **_extra):
         prompts.append(prompt)
         return None
 
@@ -91,7 +91,7 @@ def test_no_overlap_ends_without_a_deal(monkeypatch):
 
 
 def test_model_phrases_are_used_only_when_they_hide_the_limits(monkeypatch):
-    def leak(prompt, *, image=None, timeout_s=8.0):
+    def leak(prompt, *, image=None, timeout_s=8.0, **_extra):
         assert "11111" not in prompt
         assert "22222" not in prompt
         return json.dumps({"messages": ["My max is 22222.", "No."]})
@@ -104,7 +104,7 @@ def test_model_phrases_are_used_only_when_they_hide_the_limits(monkeypatch):
     assert "22222" not in blob
     assert "My max" not in blob
 
-    def safe(prompt, *, image=None, timeout_s=8.0):
+    def safe(prompt, *, image=None, timeout_s=8.0, **_extra):
         count = len(re.findall(r"(?m)^\d+\. ", prompt))
         lines = ["I can pick it up for that."] + ["Meet me at the public offer."] * (count - 1)
         return json.dumps({"messages": lines})
@@ -119,7 +119,7 @@ def test_model_phrases_are_used_only_when_they_hide_the_limits(monkeypatch):
 def test_seed_transcripts_omit_stored_limits(client, monkeypatch):
     prompts: list[str] = []
 
-    def capture(prompt, *, image=None, timeout_s=8.0):
+    def capture(prompt, *, image=None, timeout_s=8.0, **_extra):
         prompts.append(prompt)
         return None
 

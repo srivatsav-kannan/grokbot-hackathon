@@ -84,7 +84,12 @@ export function parseSort(value: string | null): SortKey {
   return "newest";
 }
 
-export function boardHref(parts: { q?: string; category?: string | null; sort?: string | null }): string {
+export function boardHref(parts: {
+  q?: string;
+  category?: string | null;
+  sort?: string | null;
+  place?: string | null;
+}): string {
   const params = new URLSearchParams();
   const q = parts.q?.trim();
   if (q) params.set("q", q);
@@ -92,6 +97,12 @@ export function boardHref(parts: { q?: string; category?: string | null; sort?: 
     params.set("category", parts.category);
   }
   if (parts.sort === "price_asc" || parts.sort === "price_desc") params.set("sort", parts.sort);
+  if (parts.place === "fairlot" || parts.place === "external") params.set("place", parts.place);
   const query = params.toString();
   return query ? `/?${query}` : "/";
+}
+
+export function loginPath(next: string): string {
+  const safe = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  return `/login?next=${encodeURIComponent(safe)}`;
 }
