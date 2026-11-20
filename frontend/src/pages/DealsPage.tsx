@@ -7,14 +7,14 @@ import { formatUsd, loginPath } from "../lib/format";
 import { useTitle } from "../lib/title";
 import type { DealsResponse, ThreadSummary, ThreadView } from "../types";
 
-function ThreadLinks({ threads, current }: { threads: ThreadSummary[]; current?: string }) {
+function ThreadLinks({ threads, current, label }: { threads: ThreadSummary[]; current?: string; label?: string }) {
   if (threads.length === 0) return null;
   return (
     <ul className="thread-links">
       {threads.map((thread) => (
         <li key={thread.id}>
           <Link to={`/deals/${thread.id}`} aria-current={thread.id === current ? "page" : undefined}>
-            <strong>{thread.title}</strong>
+            <strong>{label ?? thread.title}</strong>
             <span>{thread.summary}</span>
           </Link>
         </li>
@@ -220,7 +220,7 @@ export function DealsPage() {
                 </span>
               </p>
               {box.threads.length === 0 ? <p className="agent-note">No offers yet.</p> : null}
-              <ThreadLinks threads={box.threads} current={threadId} />
+              <ThreadLinks threads={box.threads} current={threadId} label="Offer from a buyer" />
             </div>
           ))}
         </section>
