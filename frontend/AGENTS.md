@@ -1,6 +1,6 @@
 # Frontend notes
 
-You are in @unclesdad's area. Read [DESIGN.md](DESIGN.md) before changing the look, and `docs/briefs/person-a-frontend.md` before changing behavior.
+You are in @unclesdad's area. Read [DESIGN.md](DESIGN.md) before changing the look, and `docs/planning/briefs/person-a-frontend.md` before changing behavior.
 
 - Work only under `frontend/`.
 - Types in `src/types.ts` mirror `backend/app/schemas.py`. If the server adds a field, update both in the same change with the API owner.

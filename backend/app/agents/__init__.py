@@ -1,1 +1,1 @@
-"""Agent plug-in points. See docs/INTEGRATION.md before editing."""
+"""Agent plug-in points. See docs/architecture/INTEGRATION.md before editing."""

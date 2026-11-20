@@ -263,6 +263,7 @@ def post_message(
         _set_status(thread_id, "open")
         ceiling, floor = _limits(thread_id)
         _reply_if_bot(thread_id, listing, ceiling, floor)
+        _run_bots(thread_id, listing, ceiling, floor)
         if kind in {"offer", "counter"}:
             _notify(
                 _other_user(thread_id, role),
@@ -279,9 +280,59 @@ def set_mode(user_id: str, thread_id: str, mode: str):
     _set_mode(thread_id, role, mode)
     listing = _require_listing(_listing_id(thread_id))
     ceiling, floor = _limits(thread_id)
-    if mode == "bot":
-        _reply_if_bot(thread_id, listing, ceiling, floor)
+    if mode == "bot" and _thread_status(thread_id) == "open":
+        if role == "buyer" and not _messages(thread_id):
+            offer = max(1, min(ceiling - 1, (listing.price * 3) // 4))
+            if offer in {ceiling, floor}:
+                offer -= 1
+            _append(thread_id, [("buyer_bot", "offer", offer, _phrase(listing, "offer", offer, f"I can offer {offer}.", ceiling, floor), _now())])
+        elif _messages(thread_id) and _messages(thread_id)[-1][1].startswith(role):
+            # My side spoke last. The other side answers first if it is a bot.
+            pass
+        else:
+            _reply_if_bot(thread_id, listing, ceiling, floor)
+        _run_bots(thread_id, listing, ceiling, floor)
     return _view(thread_id, user_id)
+
+
+_AUTO_BUYERS = {"sample-buyer@fairlot.app"}
+
+
+def _settle_auto_buyer(thread_id: str, listing: ListingRecord) -> None:
+    """The seeded sample buyer has no person behind it, so its agreements approve themselves."""
+
+    if _thread_status(thread_id) != "agreed":
+        return
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT users.email FROM threads JOIN users ON users.id = threads.buyer_id WHERE threads.id = ?",
+            (thread_id,),
+        ).fetchone()
+    if row is None or row["email"] not in _AUTO_BUYERS:
+        return
+    price = _last_amount(thread_id) or listing.price
+    _complete(thread_id, listing.id, price)
+    _notify(get_listing_owner(listing.id), "deal", f"Sold {listing.title} for ${price}", f"/deals/{thread_id}")
+
+
+def _run_bots(thread_id: str, listing: ListingRecord, ceiling: int, floor: int, turns: int = 6) -> None:
+    """Let two bots trade turns until one accepts, one passes, or they stop moving."""
+
+    for _ in range(turns):
+        if _thread_status(thread_id) != "open":
+            _settle_auto_buyer(thread_id, listing)
+            return
+        before = _message_count(thread_id)
+        _reply_if_bot(thread_id, listing, ceiling, floor)
+        if _message_count(thread_id) == before:
+            return
+        messages = _messages(thread_id)
+        author = messages[-1][1]
+        same_side = [m[3] for m in messages if m[1] == author and m[3] is not None]
+        if len(same_side) >= 2 and same_side[-1] == same_side[-2]:
+            _append(thread_id, [(author, "decline", None, "We are too far apart, so I will pass for now.", _now())])
+            _set_status(thread_id, "declined")
+            return
 
 
 def set_limit(user_id: str, thread_id: str, limit: int):

@@ -1,6 +1,6 @@
 # backend/app/agents — Person B, except Scout
 
-@srivatsav-kannan owns `buyer.py`, `negotiator.py`, `appraiser.py`, `inspector.py`, `lister.py`, and `llm.py`. Read `docs/briefs/person-b-agents.md` before changing a function. Keep the signatures in `docs/INTEGRATION.md`.
+@srivatsav-kannan owns `buyer.py`, `negotiator.py`, `appraiser.py`, `inspector.py`, `lister.py`, and `llm.py`. Read `docs/planning/briefs/person-b-agents.md` before changing a function. Keep the signatures in `docs/architecture/INTEGRATION.md`.
 
 `scout.py` belongs to @heruirayli. Do not edit it, and do not edit `../routes.py`, `../schemas.py`, `../services.py`, `../repository.py`, or anything under `frontend/`.
 

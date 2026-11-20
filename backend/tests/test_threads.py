@@ -143,3 +143,41 @@ def test_bot_agreement_waits_for_buyer_approval_then_records_one_sale(client):
     assert len(completed) == 1
     assert completed[0]["price"] == price
     assert client.get("/api/listings/lst_02").json()["sold_for"] == price
+
+
+def test_switching_on_the_buyer_bot_mid_thread_runs_to_an_end(client):
+    sign_in(client, email="toggle-buyer@fairlot.test")
+    opened = client.post(
+        "/api/threads",
+        json={"listing_id": "lst_14", "intent": "offer", "amount": 400, "limit": 640},
+    ).json()
+    assert opened["status"] == "open"
+    toggled = client.post(f"/api/threads/{opened['id']}/mode", json={"mode": "bot"}).json()
+    assert toggled["buyer_mode"] == "bot"
+    assert toggled["status"] in {"agreed", "declined"}
+    amounts = [m["amount"] for m in toggled["messages"] if m["amount"] is not None]
+    assert all(a <= 640 for a in amounts if a)
+    assert "640" not in " ".join(m["text"] for m in toggled["messages"])
+
+
+def test_bots_too_far_apart_pass_instead_of_looping(client):
+    sign_in(client, email="lowball@fairlot.test")
+    opened = client.post(
+        "/api/threads",
+        json={"listing_id": "lst_14", "intent": "offer", "amount": 100, "limit": 151},
+    ).json()
+    toggled = client.post(f"/api/threads/{opened['id']}/mode", json={"mode": "bot"}).json()
+    assert toggled["status"] == "declined"
+    assert len(toggled["messages"]) < 20
+
+
+def test_demo_seller_can_hand_the_waiting_offer_to_its_bot(client):
+    login = client.post("/api/auth/login", json={"email": "demo@fairlot.app", "password": "fairlot-demo"})
+    assert login.status_code == 200
+    inbox = client.get("/api/deals").json()
+    waiting = inbox["listings"][0]["threads"][0]
+    assert waiting["summary"] == "Waiting on you"
+    done = client.post(f"/api/threads/{waiting['id']}/mode", json={"mode": "bot"}).json()
+    assert done["status"] in {"deal", "declined"}
+    if done["status"] == "deal":
+        assert client.get("/api/deals").json()["completed"][0]["role"] == "seller"

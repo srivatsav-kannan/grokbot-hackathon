@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, getDeals, getThread, postThreadMessage } from "../api/client";
+import { ApiError, getDeals, getThread, postThreadMessage, setThreadLimit, setThreadMode } from "../api/client";
 import { ErrorNotice } from "../components/States";
 import { useAuth } from "../auth";
 import { formatUsd, loginPath } from "../lib/format";
@@ -21,7 +21,12 @@ function rowsOf(deals: DealsResponse): Row[] {
       rows.push({ key: bot.id, title: bot.label, summary: "Watching for matches", threadId: null });
     }
     for (const thread of bot.threads) {
-      rows.push({ key: thread.id, title: bot.label, summary: thread.summary, threadId: thread.id });
+      rows.push({
+        key: thread.id,
+        title: thread.title,
+        summary: `${thread.summary} · bot for “${bot.label}”`,
+        threadId: thread.id,
+      });
     }
   }
   for (const thread of deals.direct) {
@@ -33,6 +38,14 @@ function rowsOf(deals: DealsResponse): Row[] {
     }
   }
   return rows;
+}
+
+function whoSaid(author: string, role: "buyer" | "seller"): string {
+  const mine = author.startsWith(role);
+  const bot = author.endsWith("_bot");
+  if (mine) return bot ? "Your bot" : "You";
+  const side = author.startsWith("buyer") ? "Buyer" : "Seller";
+  return bot ? `${side}'s bot` : side;
 }
 
 export function DealsPage() {
@@ -58,16 +71,22 @@ export function DealsPage() {
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
-    getDeals(controller.signal)
-      .then((payload) => {
-        if (!controller.signal.aborted) setDeals(payload);
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
-        setError(err instanceof ApiError ? err.message : "Deals didn't load.");
-      });
-    return () => controller.abort();
-  }, [user, threadId]);
+    const load = () =>
+      getDeals(controller.signal)
+        .then((payload) => {
+          if (!controller.signal.aborted) setDeals(payload);
+        })
+        .catch((err: unknown) => {
+          if (controller.signal.aborted) return;
+          setError(err instanceof ApiError ? err.message : "Deals didn't load.");
+        });
+    void load();
+    const timer = window.setInterval(() => void load(), 6000);
+    return () => {
+      window.clearInterval(timer);
+      controller.abort();
+    };
+  }, [user, threadId, thread?.status]);
 
   useEffect(() => {
     if (!user || !threadId) {
@@ -120,6 +139,35 @@ export function DealsPage() {
     }
   }
 
+  async function changeMode(mode: "manual" | "bot") {
+    if (!thread) return;
+    setSending(true);
+    setError("");
+    try {
+      setThread(await setThreadMode(thread.id, mode));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not switch.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function saveLimit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!thread) return;
+    const raw = String(new FormData(event.currentTarget).get("limit") ?? "").replace(/[^0-9]/g, "");
+    if (!raw) return;
+    setSending(true);
+    setError("");
+    try {
+      setThread(await setThreadLimit(thread.id, Number(raw)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save your limit.");
+    } finally {
+      setSending(false);
+    }
+  }
+
   const rows = deals ? rowsOf(deals) : [];
 
   return (
@@ -139,7 +187,8 @@ export function DealsPage() {
                   </span>
                   {(bot.matches ?? []).slice(0, 4).map((match) => (
                     <Link key={match.listing_id} to={`/listings/${match.listing_id}`}>
-                      {match.title} · {formatUsd(match.price)} · {match.source_name}
+                      {match.title} · {formatUsd(match.price)}
+                      {match.source_name ? ` · ${match.source_name}` : ""}
                     </Link>
                   ))}
                 </li>
@@ -196,6 +245,43 @@ export function DealsPage() {
               </p>
               <Link to={`/listings/${thread.listing_id}`}>View listing</Link>
             </header>
+            {thread.status === "open" ? (
+              <div className="thread-controls">
+                <div className="mode-toggle" role="group" aria-label="Who is negotiating">
+                  <button
+                    type="button"
+                    aria-pressed={(thread.role === "buyer" ? thread.buyer_mode : thread.seller_mode) === "manual"}
+                    disabled={sending}
+                    onClick={() => void changeMode("manual")}
+                  >
+                    I&apos;m talking
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={(thread.role === "buyer" ? thread.buyer_mode : thread.seller_mode) === "bot"}
+                    disabled={sending}
+                    onClick={() => void changeMode("bot")}
+                  >
+                    My bot negotiates
+                  </button>
+                </div>
+                <form className="limit-form" onSubmit={(event) => void saveLimit(event)} key={`${thread.id}-${thread.my_limit}`}>
+                  <label>
+                    Your private {thread.role === "buyer" ? "max" : "min"}
+                    <span className="money-input">
+                      <span aria-hidden="true">$</span>
+                      <input name="limit" inputMode="numeric" defaultValue={thread.my_limit ?? ""} />
+                    </span>
+                  </label>
+                  <button type="submit" disabled={sending}>
+                    Save
+                  </button>
+                </form>
+                <p className="offer-hint">
+                  Only you see this number. Your bot never goes {thread.role === "buyer" ? "above" : "below"} it.
+                </p>
+              </div>
+            ) : null}
             <ol className="bubbles">
               {thread.messages.map((message) => {
                 const mine =
@@ -204,6 +290,7 @@ export function DealsPage() {
                     : message.author.startsWith("seller");
                 return (
                   <li key={`${message.at}-${message.text}`} className={mine ? "mine" : "theirs"}>
+                    <small className="who">{whoSaid(message.author, thread.role)}</small>
                     <p>{message.text}</p>
                     {message.amount != null ? <span>{formatUsd(message.amount)}</span> : null}
                   </li>

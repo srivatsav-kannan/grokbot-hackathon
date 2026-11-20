@@ -1,6 +1,6 @@
 # backend/app — Person C
 
-You are in @heruirayli's area: routes, schemas, SQLite, services, the hunt runner, seed data, and `main.py`. Read `docs/briefs/person-c-data-api-ship.md` and `docs/INTEGRATION.md` first.
+You are in @heruirayli's area: routes, schemas, SQLite, services, the hunt runner, seed data, and `main.py`. Read `docs/planning/briefs/person-c-data-api-ship.md` and `docs/architecture/INTEGRATION.md` first.
 
 `agents/scout.py` is also yours. Every other file under `agents/` belongs to @srivatsav-kannan. Do not change those function signatures. Do not edit `frontend/` (@unclesdad) or `backend/tests/test_no_price_limit_leak.py`.
 

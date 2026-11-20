@@ -3,14 +3,15 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, login } from "../api/client";
 import { useAuth } from "../auth";
 import { useTitle } from "../lib/title";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "../components/DemoBanner";
 
 export function LoginPage() {
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [error, setError] = useState("");
   const [working, setWorking] = useState(false);
   useTitle("Log in");

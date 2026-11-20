@@ -28,6 +28,7 @@ export function ListingPage() {
   const [offerState, setOfferState] = useState<"idle" | "working" | "error">("idle");
   const [offerMessage, setOfferMessage] = useState("");
   const offerKey = useRef<string | null>(null);
+  const intentRef = useRef<"offer" | "bot">("offer");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -51,20 +52,33 @@ export function ListingPage() {
   async function onOffer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!listing) return;
+    const intent = intentRef.current;
+    const data = new FormData(event.currentTarget);
+    const amount = Number(String(data.get("amount") ?? "").replace(/[^0-9]/g, "")) || undefined;
+    const limit = Number(String(data.get("limit") ?? "").replace(/[^0-9]/g, "")) || undefined;
+    if (!limit) {
+      setOfferState("error");
+      setOfferMessage("Set your private max first.");
+      return;
+    }
+    if (intent === "offer" && (!amount || amount > limit)) {
+      setOfferState("error");
+      setOfferMessage(!amount ? "Enter your offer." : "Your offer is above your own max.");
+      return;
+    }
     setOfferState("working");
     setOfferMessage("");
     try {
       offerKey.current ??= crypto.randomUUID();
       const thread = await openThread(
-        {
-          listing_id: listing.id,
-          intent: "offer",
-          text: "I'd like to make an offer.",
-        },
+        intent === "bot"
+          ? { listing_id: listing.id, intent: "bot", limit }
+          : { listing_id: listing.id, intent: "offer", amount, limit, text: `I can offer $${amount}.` },
         offerKey.current,
       );
       navigate(`/deals/${thread.id}`);
     } catch (err) {
+      offerKey.current = null;
       if (err instanceof ApiError && err.status === 401) {
         navigate(loginPath(`/listings/${listing.id}`));
         return;
@@ -170,28 +184,62 @@ export function ListingPage() {
             </div>
           ) : null}
 
-          <div className="actions">
-            {listing.origin === "scout" || listing.sold_for != null ? null : (
-              <>
-                <form method="post" action="/api/threads" onSubmit={onOffer}>
-                  <input type="hidden" name="listing_id" value={listing.id} />
-                  <button
-                    type="submit"
-                    className="button-primary"
-                    data-action="make-offer"
-                    disabled={offerState === "working"}
-                  >
-                    {offerState === "working" ? "Making an offer…" : "Make an offer"}
-                  </button>
-                </form>
-                {offerState === "error" ? (
-                  <p className="form-error" role="alert">
-                    {offerMessage}
-                  </p>
-                ) : null}
-              </>
-            )}
-          </div>
+          {listing.origin === "scout" || listing.sold_for != null ? null : (
+            <form className="offer-panel" onSubmit={onOffer} noValidate>
+              <h2>Make a deal</h2>
+              <div className="offer-fields">
+                <label>
+                  Your offer
+                  <span className="money-input">
+                    <span aria-hidden="true">$</span>
+                    <input
+                      name="amount"
+                      inputMode="numeric"
+                      defaultValue={Math.max(1, Math.round((Math.min(listing.price, listing.appraisal.estimated_value) * 0.9) / 5) * 5)}
+                    />
+                  </span>
+                </label>
+                <label>
+                  Your private max
+                  <span className="money-input">
+                    <span aria-hidden="true">$</span>
+                    <input name="limit" inputMode="numeric" defaultValue={listing.price} />
+                  </span>
+                </label>
+              </div>
+              <p className="offer-hint">
+                Only the server sees your max. The seller never sees it, and your bot never offers above it.
+              </p>
+              <div className="offer-buttons">
+                <button
+                  type="submit"
+                  className="button-primary"
+                  disabled={offerState === "working"}
+                  onClick={() => (intentRef.current = "offer")}
+                >
+                  Send my offer
+                </button>
+                <button
+                  type="submit"
+                  className="button-secondary"
+                  disabled={offerState === "working"}
+                  onClick={() => (intentRef.current = "bot")}
+                >
+                  Let my bot negotiate
+                </button>
+              </div>
+              <p className="offer-hint">
+                Send my offer opens a chat with the seller. Let my bot negotiate has your bot haggle with the
+                seller&apos;s bot inside your max, and you approve the final price in Deals.
+              </p>
+              {offerState === "working" ? <p className="offer-hint">Opening the conversation…</p> : null}
+              {offerState === "error" ? (
+                <p className="form-error" role="alert">
+                  {offerMessage}
+                </p>
+              ) : null}
+            </form>
+          )}
         </div>
       </div>
 

@@ -63,6 +63,46 @@ def _hidden(value: int, public: set[int]) -> int:
     return value
 
 
+DEMO_EMAIL = "demo@fairlot.app"
+DEMO_PASSWORD = "fairlot-demo"
+_DEMO_LISTING = "lst_24"
+_SAMPLE_BUYER = "sample-buyer@fairlot.app"
+
+
+def load_demo() -> None:
+    """Shared judge account. It owns one sample listing with an offer waiting, so both sides can be tried."""
+
+    import secrets as _secrets
+
+    from backend.app import repository as repo
+    from backend.app.services import signup
+
+    if repo.get_user_by_email(DEMO_EMAIL) is None:
+        signup(DEMO_EMAIL, DEMO_PASSWORD)
+    if repo.get_user_by_email(_SAMPLE_BUYER) is None:
+        signup(_SAMPLE_BUYER, _secrets.token_urlsafe(18))
+    demo = repo.get_user_by_email(DEMO_EMAIL)[0]
+    buyer = repo.get_user_by_email(_SAMPLE_BUYER)[0]
+    with connect() as conn:
+        conn.execute(
+            "UPDATE listings SET user_id = ? WHERE id = ? AND user_id IS NULL",
+            (demo.id, _DEMO_LISTING),
+        )
+        sold = conn.execute("SELECT 1 FROM completions WHERE listing_id = ?", (_DEMO_LISTING,)).fetchone()
+    if sold is not None:
+        return
+    from backend.app import deals
+
+    limits = repo.get_limits(_DEMO_LISTING)
+    floor = limits.seller_min if limits is not None else 700
+    thread_id = deals._ensure(_DEMO_LISTING, buyer.id, None, "bot", "manual", 815, floor)
+    if not deals._message_count(thread_id):
+        deals._append(
+            thread_id,
+            [("buyer_bot", "offer", 700, "Hi, I can offer 700 for the lounge set and pick it up this weekend.", None)],
+        )
+
+
 def load_seed() -> None:
     """Insert missing samples and refresh existing sample rows in place. Safe to run on every boot."""
 

@@ -2,7 +2,7 @@
 
 The public want view has no private max and no access token. The token is returned
 once, from POST /api/wants. Mirror these shapes in the frontend client (Person A)
-and in docs/INTEGRATION.md.
+and in docs/architecture/INTEGRATION.md.
 """
 
 from typing import Literal

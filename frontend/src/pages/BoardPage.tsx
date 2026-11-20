@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, createWant, huntWant, listListings, searchListings } from "../api/client";
 import { useAuth } from "../auth";
+import { DemoBanner } from "../components/DemoBanner";
 import { ActivityPanel } from "../components/ActivityPanel";
 import { ListingGrid } from "../components/ListingGrid";
 import {
@@ -67,6 +68,10 @@ export function BoardPage() {
   const [agentState, setAgentState] = useState<"idle" | "working" | "error">("idle");
   const [agentMessage, setAgentMessage] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  useEffect(() => {
+    const found = q.match(/\$\s?(\d[\d,]*)/);
+    setMaxPrice(found ? found[1].replace(/,/g, "") : "");
+  }, [q]);
 
   useTitle(catalogue ? `Results for ${q}` : "Fairlot");
 
@@ -133,8 +138,8 @@ export function BoardPage() {
         maxPrice: Number.isFinite(dollars) && dollars > 0 ? dollars : null,
       });
       saveWant(created.id, created.access_token, q);
+      await huntWant(created.id, created.access_token).catch(() => undefined);
       navigate("/deals");
-      void huntWant(created.id, created.access_token).catch(() => undefined);
     } catch (err) {
       setAgentState("error");
       setAgentMessage(err instanceof ApiError ? err.message : "The buyer bot didn't start.");
@@ -150,6 +155,7 @@ export function BoardPage() {
   return (
     <>
       <div className="wrap board">
+        <DemoBanner />
         {catalogue ? (
           <div className="catalogue">
             <div className="catalogue-main">
@@ -203,25 +209,6 @@ export function BoardPage() {
                   onRetry={() => setAttempt((value) => value + 1)}
                 />
               ) : null}
-              <form className="bot-card" onSubmit={(event) => { event.preventDefault(); void askAgent(); }}>
-                <h2>Send a buyer bot for “{q}”</h2>
-                <label htmlFor="bot-max">Max price</label>
-                <input
-                  id="bot-max"
-                  inputMode="numeric"
-                  value={maxPrice}
-                  onChange={(event) => setMaxPrice(event.target.value)}
-                  placeholder="400"
-                />
-                <button type="submit" data-action="hunt" disabled={agentState === "working"}>
-                  {agentState === "working" ? "Starting…" : "Start"}
-                </button>
-                {agentState === "error" ? (
-                  <p className="form-error" role="alert">
-                    {agentMessage}
-                  </p>
-                ) : null}
-              </form>
               {load.status === "ready" && listings.length > 0 ? (
                 <ul className="catalogue-rows" id="listing-grid">
                   {listings.slice(0, 6).map((listing) => (
@@ -232,6 +219,29 @@ export function BoardPage() {
               {load.status === "ready" && listings.length === 0 ? (
                 <EmptySearch query={q} category={category ? CATEGORY_LABEL[category] : undefined} />
               ) : null}
+              <form className="bot-card" onSubmit={(event) => { event.preventDefault(); void askAgent(); }}>
+                <h2>Send a buyer bot for “{q}”</h2>
+                <label htmlFor="bot-max">Your private max</label>
+                <input
+                  id="bot-max"
+                  inputMode="numeric"
+                  value={maxPrice}
+                  onChange={(event) => setMaxPrice(event.target.value)}
+                  placeholder="400"
+                />
+                <button type="submit" className="button-primary" data-action="hunt" disabled={agentState === "working"}>
+                  {agentState === "working" ? "Your bot is searching…" : "Start buyer bot"}
+                </button>
+                <p className="offer-hint">
+                  The bot checks every listing that fits, opens deals with the best few inside your max, and keeps
+                  watching for new ones. Track it in Deals.
+                </p>
+                {agentState === "error" ? (
+                  <p className="form-error" role="alert">
+                    {agentMessage}
+                  </p>
+                ) : null}
+              </form>
             </div>
             <ActivityPanel />
           </div>

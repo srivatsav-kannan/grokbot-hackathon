@@ -7,7 +7,7 @@
 /Dockerfile @heruirayli
 /.env.example @heruirayli
 /README.md @heruirayli
-/docs/GROKBOT_INTEGRATION.md @heruirayli
+/docs/architecture/GROKBOT_INTEGRATION.md @heruirayli
 
 /backend/app/agents/ @srivatsav-kannan
 /backend/tests/test_no_price_limit_leak.py @srivatsav-kannan

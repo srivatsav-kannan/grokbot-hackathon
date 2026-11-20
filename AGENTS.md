@@ -4,14 +4,14 @@ Photo-first classifieds for SF Bay Area bikes, computers, and furniture. Server-
 
 | Path | Person | Brief |
 | --- | --- | --- |
-| `frontend/` | @unclesdad | `docs/briefs/person-a-frontend.md` |
-| `backend/app/agents/` except `scout.py` | @srivatsav-kannan | `docs/briefs/person-b-agents.md` |
-| `backend/tests/test_no_price_limit_leak.py` | @srivatsav-kannan | `docs/briefs/person-b-agents.md` |
-| `backend/app/` routes, schema, db, repository, services, runner, seed, `main.py` | @heruirayli | `docs/briefs/person-c-data-api-ship.md` |
-| `backend/app/agents/scout.py` | @heruirayli | `docs/briefs/person-c-data-api-ship.md` |
-| `docs/GROKBOT_INTEGRATION.md`, `Dockerfile`, `README.md` | @heruirayli | `docs/briefs/person-c-data-api-ship.md` |
+| `frontend/` | @unclesdad | `docs/planning/briefs/person-a-frontend.md` |
+| `backend/app/agents/` except `scout.py` | @srivatsav-kannan | `docs/planning/briefs/person-b-agents.md` |
+| `backend/tests/test_no_price_limit_leak.py` | @srivatsav-kannan | `docs/planning/briefs/person-b-agents.md` |
+| `backend/app/` routes, schema, db, repository, services, runner, seed, `main.py` | @heruirayli | `docs/planning/briefs/person-c-data-api-ship.md` |
+| `backend/app/agents/scout.py` | @heruirayli | `docs/planning/briefs/person-c-data-api-ship.md` |
+| `docs/architecture/GROKBOT_INTEGRATION.md`, `Dockerfile`, `README.md` | @heruirayli | `docs/planning/briefs/person-c-data-api-ship.md` |
 
-Product contract: `docs/ARCHITECTURE.md`. Call graph: `docs/INTEGRATION.md`. Bot recipe: `docs/GROKBOT_INTEGRATION.md`.
+Product contract: `docs/architecture/ARCHITECTURE.md`. Call graph: `docs/architecture/INTEGRATION.md`. Bot recipe: `docs/architecture/GROKBOT_INTEGRATION.md`.
 
 ## Rules
 
