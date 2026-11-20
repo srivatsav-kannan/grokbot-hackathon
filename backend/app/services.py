@@ -922,7 +922,7 @@ def _public_line(message: str, fallback: str) -> str:
     import re as _re
 
     for number in repo.secret_numbers():
-        if _re.search(rf"(?<![\d.,]){number}(?![\d.,]\d)", message):
+        if _re.search(rf"(?<![\w.,]){number}(?![\w]|[.,]\d)", message):
             return fallback
     return message
 
