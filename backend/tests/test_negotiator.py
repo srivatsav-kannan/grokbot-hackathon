@@ -141,11 +141,12 @@ def test_seed_transcripts_omit_stored_limits(client, monkeypatch):
                 assert [message.amount for message in draft.messages if message.amount is not None]
             else:
                 assert draft.outcome == "no_deal"
-    joined = "\n".join(prompts)
-    assert "buyer_max" not in joined
-    assert "seller_min" not in joined
-    for secret in (400, 12345):
-        assert not re.search(rf"(?<!\d){secret}(?!\d)", joined)
+            for prompt in prompts:
+                assert "buyer_max" not in prompt
+                assert "seller_min" not in prompt
+                for secret in (buyer_max, seller_min):
+                    assert not re.search(rf"(?<!\d){secret}(?!\d)", prompt)
+            prompts.clear()
 
 
 def _ints(draft) -> set[int]:
